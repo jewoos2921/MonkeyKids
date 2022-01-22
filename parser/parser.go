@@ -234,7 +234,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 
 	precedence := p.curPrecedence()
 	p.nextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.parseExpression(precedence) // 이 값을 감소시켜서 RBP를 작게 만들어야함
 
 	return expression
 }
