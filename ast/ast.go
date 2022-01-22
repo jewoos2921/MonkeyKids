@@ -46,7 +46,7 @@ type Identifier struct {
 	Value string
 }
 
-func (i *Identifier) statementNode()       {}
+func (i *Identifier) expressionNode()      {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 
 type ReturnStatement struct {
