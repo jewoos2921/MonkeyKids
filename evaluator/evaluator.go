@@ -3,6 +3,7 @@ package evaluator
 import (
 	"MonkeyKids/ast"
 	"MonkeyKids/object"
+	"fmt"
 )
 
 // true나 false를 만날때마다 object.Boolean을 다시 만들어야 하는가??
@@ -78,7 +79,7 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 		return evalMinusPrefixOperatorExpression(right)
 
 	default:
-		return nil
+		return newError("unknown operator: %s%s", operator, right.Type())
 	}
 }
 
@@ -98,7 +99,7 @@ func evalBangOperatorExpression(right object.Object) object.Object {
 
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 	if right.Type() != object.INTEGER_OBJ {
-		return NULL
+		return newError("unknown operator: -%s", right.Type())
 	}
 	value := right.(*object.Integer).Value
 	return &object.Integer{Value: -value}
@@ -113,9 +114,10 @@ func evalInfixExpression(operator string,
 		return nativeBoolToBooleanObject(left == right)
 	case operator == "!=":
 		return nativeBoolToBooleanObject(left != right)
-
+	case left.Type() != right.Type():
+		return newError("type mismatch: %s %s %s", left.Type(), operator, right.Type())
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -141,7 +143,7 @@ func evalIntegerInfixExpression(operator string,
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 
 	}
 }
@@ -179,8 +181,12 @@ func evalProgram(program *ast.Program) object.Object {
 	for _, statement := range program.Statements {
 		result = Eval(statement)
 
-		if returnValue, ok := result.(*object.ReturnValue); ok {
-			return returnValue.Value
+		switch result := result.(type) {
+		case *object.ReturnValue:
+			return result.Value
+		case *object.Error:
+			return result
+
 		}
 	}
 	return result
@@ -194,9 +200,17 @@ func evalBlockStatements(block *ast.BlockStatement) object.Object {
 		result = Eval(statement)
 
 		// object.RETURN_VALUE_OBJ이면 풀지않고 그대로 반환
-		if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
-			return result
+		if result != nil {
+			rt := result.Type()
+			if rt == object.RETURN_VALUE_OBJ || rt == object.ERROR_OBJ {
+				return result
+			}
 		}
 	}
 	return result
+}
+
+// 앞서 작성한 코드에서 어떤 동작으로 처리해야 할지 몰라 그냥 NULL을 반환한 모든 코드를 대체 할것이다.
+func newError(format string, a ...interface{}) *object.Error {
+	return &object.Error{Message: fmt.Sprintf(format, a...)}
 }
