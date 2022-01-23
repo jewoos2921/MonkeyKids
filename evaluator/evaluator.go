@@ -44,6 +44,12 @@ func Eval(node ast.Node) object.Object {
 	case *ast.ReturnStatement:
 		val := Eval(node.ReturnValue)
 		return &object.ReturnValue{Value: val}
+
+	case *ast.LetStatement:
+		val := Eval(node.Value)
+		if isError(val) {
+			return val
+		}
 	// 표현식
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
@@ -213,4 +219,8 @@ func evalBlockStatements(block *ast.BlockStatement) object.Object {
 // 앞서 작성한 코드에서 어떤 동작으로 처리해야 할지 몰라 그냥 NULL을 반환한 모든 코드를 대체 할것이다.
 func newError(format string, a ...interface{}) *object.Error {
 	return &object.Error{Message: fmt.Sprintf(format, a...)}
+}
+
+func isError(val object.Object) bool {
+
 }
