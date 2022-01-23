@@ -17,7 +17,7 @@ func Eval(node ast.Node) object.Object {
 	switch node := node.(type) {
 	// 명령문
 	case *ast.Program:
-		return evalStatements(node.Statements)
+		return evalProgram(node)
 
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression)
@@ -35,10 +35,14 @@ func Eval(node ast.Node) object.Object {
 		return evalInfixExpression(node.Operator, left, right)
 
 	case *ast.BlockStatement:
-		return evalStatements(node.Statements)
+		return evalBlockStatements(node)
+
 	case *ast.IfExpression:
 		return evalIfExpression(node)
 
+	case *ast.ReturnStatement:
+		val := Eval(node.ReturnValue)
+		return &object.ReturnValue{Value: val}
 	// 표현식
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
@@ -58,6 +62,10 @@ func evalStatements(stmts []ast.Statement) object.Object {
 
 	for _, statement := range stmts {
 		result = Eval(statement)
+
+		if returnValue, ok := result.(*object.ReturnValue); ok {
+			return returnValue.Value
+		}
 	}
 	return result
 }
@@ -162,4 +170,33 @@ func isTruthy(obj object.Object) bool {
 		return true
 	}
 
+}
+
+// 명시적으로 반환값을 풀지 않고 각 평가 결과의 Type만 검사
+func evalProgram(program *ast.Program) object.Object {
+	var result object.Object
+
+	for _, statement := range program.Statements {
+		result = Eval(statement)
+
+		if returnValue, ok := result.(*object.ReturnValue); ok {
+			return returnValue.Value
+		}
+	}
+	return result
+}
+
+// 명시적으로 반환값을 풀지 않고 각 평가 결과의 Type만 검사
+func evalBlockStatements(block *ast.BlockStatement) object.Object {
+	var result object.Object
+
+	for _, statement := range block.Statements {
+		result = Eval(statement)
+
+		// object.RETURN_VALUE_OBJ이면 풀지않고 그대로 반환
+		if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
+			return result
+		}
+	}
+	return result
 }
