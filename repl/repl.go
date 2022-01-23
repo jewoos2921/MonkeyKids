@@ -3,6 +3,7 @@ package repl
 import (
 	"MonkeyKids/evaluator"
 	"MonkeyKids/lexer"
+	"MonkeyKids/object"
 	"MonkeyKids/parser"
 	"bufio"
 	"fmt"
@@ -13,6 +14,7 @@ const PROMPT = ">>"
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
+	env := object.NewEnvironment()
 
 	for {
 		fmt.Fprintf(out, PROMPT)
@@ -30,7 +32,7 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 		// 파서가 반환한 AST program 대신 program을 Eval로 넘간다.
-		evaluated := evaluator.Eval(program)
+		evaluated := evaluator.Eval(program, env)
 		if evaluated != nil {
 			io.WriteString(out, evaluated.Inspect())
 			io.WriteString(out, "\n")

@@ -38,7 +38,12 @@ func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
-	return Eval(program)
+	// 테스트 스윗에서는 환경이 유지되지 않도록 만들어야 한다.
+	// 각각의 테스트 함수와 테스트 케이스 간에 상태가 유지되면 안된다.
+	// testEval을 호출시 마다 새로운 환경을 가져야 한다.
+	// 테스트가 실행되는 순서에 따라 전역 상태가 매번 달라질 수 있기 때문이다.
+	env := object.NewEnvironment()
+	return Eval(program, env)
 }
 
 func testInterObject(t *testing.T, obj object.Object, expected int64) bool {
@@ -203,9 +208,9 @@ func TestLetStatements(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"let a = 5;", 5},
-		{"let a= 5 * 5; a;", 25},
-		{"let a= 5; let b = a; b;", 5},
+		{"let a = 5; a;z cc ", 5},
+		{"let a = 5 * 5; a;", 25},
+		{"let a = 5; let b = a; b;", 5},
 		{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
 	}
 	for _, tt := range tests {
