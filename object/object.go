@@ -4,6 +4,7 @@ import (
 	"MonkeyKids/ast"
 	"bytes"
 	"fmt"
+	"hash/fnv"
 	"strings"
 )
 
@@ -124,4 +125,46 @@ func (ao *Array) Inspect() string {
 	out.WriteString("]")
 
 	return out.String()
+}
+
+// hashkey
+type HashKey struct {
+	Type  ObjectType // 타입별로 HashKey가 갖는 범위를 효과적으로 제한 (string이기 때문에)
+	Value uint64     // 정수타입을 갖는 실제 해시 키 값을 담는다.
+}
+
+// HashKey는 그저 문자열 하나와 정수 하나 만으로 구성되기 때문에 == 연산자로 다른 HashKey과 쉽게 비교 가능
+// GO 언어에서는 두 구조체간 타입이 같으면 동등성을 비교가능
+// 비어 있지 않은 필드가 모두 같다면 두 구조체는 같다.
+// 작은 결점: .Value가 다른 2개의 문자열이, 같은 해시 값을 가질 수 있다는 것
+// "hash/fnv" 패키지가 서로 다른 두개의 문자열로 생성한 두 해시값이 같을시 발생
+// 해시 충돌이라고 표현
+//======================================================================================================================
+// 체이닝(separate chaining)
+// 버킷을 일종의 리스트로 관리해 해시 충돌을 해결하는 전략이다.
+// 해시값이 같다면 같은 버킷에 들어가게 되고, 버킷은 리스트로 관리되므로 기존 리스트에 해시값이 같은 엔트리를 연결해서 처리한다.
+//======================================================================================================================
+// 오픈 어드레싱(open addressing)
+// 버킷 하나에 엔트리 하나를 넣는다. 엔트리를 버킷에 넗으려 할때, 이미 버킷에 채워져 있다면 빈 버킷을 찾아서 넣는다.
+// 빈 버킷을 찾는 전략에 따라 구현체가 달라진다.
+
+func (b *Boolean) HashKey() HashKey {
+	var value uint64
+
+	if b.Value {
+		value = 1
+	} else {
+		value = 0
+	}
+	return HashKey{Type: b.Type(), Value: value}
+}
+func (i *Integer) HashKey() HashKey {
+	return HashKey{Type: i.Type(), Value: uint64(i.Value)}
+}
+
+func (s *String) HashKey() HashKey {
+	h := fnv.New64a()
+	h.Write([]byte(s.Value))
+
+	return HashKey{Type: s.Type(), Value: h.Sum64()}
 }
