@@ -217,3 +217,48 @@ func TestLetStatements(t *testing.T) {
 		testInterObject(t, testEval(tt.input), tt.expected)
 	}
 }
+
+func TestFunctionObject(t *testing.T) {
+	input := "fn(x) { x + 2; };"
+
+	evaluated := testEval(input)
+	fn, ok := evaluated.(*object.Function)
+	if !ok {
+		t.Fatalf("object is not Function. got=%T (%+v)", evaluated, evaluated)
+	}
+
+	if len(fn.Parameters) != 1 {
+		t.Fatalf("function has wrong parameters. Parameters=%+v", fn.Parameters)
+	}
+
+	if fn.Parameters[0].String() != "x" {
+		t.Fatalf("paramteter is not 'x'. got=%q", fn.Parameters[0])
+	}
+
+	expectedBody := "(x + 2)"
+	if fn.Body.String() != expectedBody {
+		t.Fatalf("body is not %q. got=%q", expectedBody, fn.Body.String())
+	}
+}
+
+func TestFunctionApplication(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"let identity = fn(x) { x; }; identity(5); 5;", 5},           // 암묵적인 값 반환
+		{"let identity = fn(x) { return x; }; identity(5); 5;", 5},    // return 문 반환
+		{"let double = fn(x) { x * 2; }; double(5);", 10},             // 함수 파라미터를 표현식에서 사용하기
+		{"let add = fn(x, y) { x + y; }; add(5, 5);", 10},             // 다중 파라미터
+		{"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20}, // 함수에 전달하기 전에 인수 평가
+		{"fn(x) { x; }; fn(5); 5;", 5},
+	}
+	for _, tt := range tests {
+		testInterObject(t, testEval(tt.input), tt.expected)
+	}
+}
+
+func TestClosures(t *testing.T) {
+	input := `let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);`
+	testInterObject(t, testEval(input), 4)
+}
