@@ -34,6 +34,8 @@ const (
 	RBRACE    = "}"
 	EQ        = "=="
 	NOT_EQ    = "!="
+	LBRACKET  = "["
+	RBRACKET  = "]"
 
 	// 예약어
 	FUNCTION = "FUNCTION"
