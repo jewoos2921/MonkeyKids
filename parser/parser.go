@@ -8,6 +8,8 @@ import (
 	"strconv"
 )
 
+// 상수 블록에서 INDEX가 가장 마지막행에 있다는 것이 중요
+// iota를 사용한 상수 블록에서 가장 마지막행에 있기에 INDEX는 우선순위가 가장 높아진다.
 const (
 	_ int = iota
 	LOWEST
