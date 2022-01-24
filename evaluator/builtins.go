@@ -22,6 +22,7 @@ var builtins = map[string]*object.Builtin{
 			}
 		},
 	},
+
 	"Fn": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
