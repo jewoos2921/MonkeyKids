@@ -103,6 +103,7 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 	return true
 
 }
+
 func TestBangOperator(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -263,6 +264,7 @@ func TestClosures(t *testing.T) {
 	input := `let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);`
 	testInterObject(t, testEval(input), 4)
 }
+
 func TestStringLiteral(t *testing.T) {
 	input := `"hello world";`
 
@@ -273,5 +275,35 @@ func TestStringLiteral(t *testing.T) {
 	}
 	if str.Value != "hello world" {
 		t.Errorf("String has wrong value. got=%q", str.Value)
+	}
+}
+
+func TestBuiltinFunctions(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`len("")`, 0},
+		{`len("four")`, 4},
+		{`len("hello world")`, 11},
+		{`len(1)`, `argument to 'len' not supported, got INTEGER`},
+		{`len("one", "two")`, "wrong number of arguments. got=2, want=1"},
+	}
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+
+		switch expected := tt.expected.(type) {
+		case int:
+			testInterObject(t, evaluated, int64(expected))
+		case string:
+			errObj, ok := evaluated.(*object.Error)
+			if !ok {
+				t.Errorf("object is not Error. got=%1, got=%q", expected, evaluated)
+				continue
+			}
+			if errObj.Message != expected {
+				t.Errorf("wrong error message. expected=%q, got=%q", expected, errObj.Message)
+			}
+		}
 	}
 }
