@@ -295,3 +295,26 @@ func (al *ArrayLiteral) String() string {
 
 	return out.String()
 }
+
+// 인덱스 연산자 표현식
+// <expression>[<expression>]
+
+type IndexExpression struct {
+	Token token.Token // '[' 토큰
+	Left  Expression  // 접근의 대상인 객체
+	Index Expression
+}
+
+func (ie *IndexExpression) expressionNode()      {}
+func (ie *IndexExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IndexExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(ie.Left.String())
+	out.WriteString("[")
+	out.WriteString(ie.Index.String())
+	out.WriteString("])")
+
+	return out.String()
+}
