@@ -12,8 +12,9 @@ const (
 	EOF     = "EOF"
 
 	// 식별자 + 리터럴
-	IDENT = " IDENT"
-	INT   = "INT"
+	IDENT  = " IDENT"
+	INT    = "INT"
+	STRING = "STRING"
 
 	ASSIGN   = "="
 	PLUS     = "+"

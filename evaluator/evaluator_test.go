@@ -186,6 +186,7 @@ func TestErrorHandling(t *testing.T) {
 		{`if (10 > 1) {if (10 > 1) { return true + false; } return 1; }`,
 			"unknown operator: BOOLEAN + BOOLEAN"},
 		{"foobar", "identifier not found: foobar"},
+		{`"hello" - "World"`, "unknown operator: STRING + STRING"},
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
@@ -261,4 +262,16 @@ func TestFunctionApplication(t *testing.T) {
 func TestClosures(t *testing.T) {
 	input := `let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);`
 	testInterObject(t, testEval(input), 4)
+}
+func TestStringLiteral(t *testing.T) {
+	input := `"hello world";`
+
+	evaluated := testEval(input)
+	str, ok := evaluated.(*object.String)
+	if !ok {
+		t.Fatalf("object is not String. got=%T (%+v)", evaluated, evaluated)
+	}
+	if str.Value != "hello world" {
+		t.Errorf("String has wrong value. got=%q", str.Value)
+	}
 }
