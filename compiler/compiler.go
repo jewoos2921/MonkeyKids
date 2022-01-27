@@ -4,6 +4,7 @@ import (
 	"MonkeyKids/ast"
 	"MonkeyKids/code"
 	"MonkeyKids/object"
+	"fmt"
 )
 
 type Compiler struct {
@@ -37,6 +38,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 		err = c.Compile(node.Right)
 		if err != nil {
 			return err
+		}
+
+		switch node.Operator {
+		case "+":
+			c.emit(code.OpAdd)
+		default:
+			// 컴파일 방법을 알 수 없는 중위 연산자를 만났을 때 에러를 반환하게 만든다.
+			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
