@@ -72,6 +72,11 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 		if err != nil {
 			t.Errorf("testIntegerObject failed: %s", err)
 		}
+	case bool:
+		err := testBooleanObject(bool(expected), actual)
+		if err != nil {
+			t.Errorf("testBooleanObject failed: %s", err)
+		}
 	}
 }
 
@@ -92,4 +97,27 @@ func TestIntegerArithmetic(t *testing.T) {
 	}
 
 	runVmTests(t, tests)
+}
+
+// 아무것도 스택에 넣지 못한 상태에서 뭔가를 꺼내려 했기에, 뭔가를 꺼냐려 했기에, 인덱스 범위 초과로 인해 패닉이 발생
+// Go 언어에서 패닉은 프로그램을 지속할 수 없으면 사용한다. 따라서 패닉이 발생한 즉시 현재 함수의 실행을 종료한다.
+// 그리고 지연함수를 실행하면서 고루틴 스택을 타고 올라간다. 이런 프로세스가 고루틴 스택의 최상단에 도달하면 프로그램이 죽는다.
+func TestBooleanExpression(t *testing.T) {
+	tests := []vmTestCase{
+		{"true", true},
+		{"false", false},
+	}
+	runVmTests(t, tests)
+}
+
+func testBooleanObject(expected bool, actual object.Object) error {
+	result, ok := actual.(*object.Boolean)
+	if !ok {
+		return fmt.Errorf("object is not Boolean. got=%T (%+v)", actual, actual)
+	}
+
+	if result.Value != expected {
+		return fmt.Errorf("object has wrong value.  got=%t, want=%t", result.Value, expected)
+	}
+	return nil
 }

@@ -9,6 +9,10 @@ import (
 
 const StackSize = 2048
 
+// true 는 언제나 true, false는 언제나 false 그래서 전역 변수로 정의 (성능면에서)
+var True = &object.Boolean{Value: true}
+var False = &object.Boolean{Value: false}
+
 type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
@@ -44,6 +48,19 @@ func (vm *VM) Run() error {
 			}
 		case code.OpPop:
 			vm.Pop()
+
+		case code.OpTrue:
+			err := vm.Push(True)
+			if err != nil {
+				return err
+			}
+
+		case code.OpFalse:
+			err := vm.Push(False)
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 	return nil
