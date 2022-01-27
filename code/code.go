@@ -23,6 +23,10 @@ const (
 	// 바이트코드에서 사용할 자원만 낭비하는 게 아니라, 컴파일러와 가상 머신에서 사용할 자원도 낭비된다.
 	OpTrue
 	OpFalse
+	// 비교 연산자
+	OpEqual
+	OpNotEqual
+	OpGreaterThan
 )
 
 type Definition struct {
@@ -31,14 +35,17 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant: {"OpConstant", []int{2}},
-	OpAdd:      {"OpAdd", []int{}},
-	OpPop:      {"OpPop", []int{}},
-	OpSub:      {"OpSub", []int{}},
-	OpMul:      {"OpMul", []int{}},
-	OpDiv:      {"OpDiv", []int{}},
-	OpTrue:     {"OpTrue", []int{}},
-	OpFalse:    {"OpFalse", []int{}},
+	OpConstant:    {"OpConstant", []int{2}},
+	OpAdd:         {"OpAdd", []int{}},
+	OpPop:         {"OpPop", []int{}},
+	OpSub:         {"OpSub", []int{}},
+	OpMul:         {"OpMul", []int{}},
+	OpDiv:         {"OpDiv", []int{}},
+	OpTrue:        {"OpTrue", []int{}},
+	OpFalse:       {"OpFalse", []int{}},
+	OpEqual:       {"OpEqual", []int{}},
+	OpNotEqual:    {"OpNotEqual", []int{}},
+	OpGreaterThan: {"OpGreaterThan", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
