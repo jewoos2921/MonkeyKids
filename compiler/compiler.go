@@ -126,9 +126,32 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if c.lastInstructionIsPop() {
 			c.removeLastPop()
 		}
-		afterConsequencePos := len(c.instructions) // 다음에 배출할 명령어가 갖는 오프셋 값을 계산한다.
-		c.changedOperand(jumpNotTruthyPos, afterConsequencePos)
 
+		// OpJump는 조건이 참 같은 값을로 핵석됐을 때, 조건식 else 분기를 지나가야 한다.
+		// OpJump는 컨시퀀스에 속해 있는 셈
+
+		if node.Alternative == nil {
+			afterConsequencePos := len(c.instructions) // 다음에 배출할 명령어가 갖는 오프셋 값을 계산한다.
+			c.changedOperand(jumpNotTruthyPos, afterConsequencePos)
+		} else {
+			// OpJump 명령어에 쓰레기값 9999를 넣어서 배출
+			jumpPos := c.emit(code.OpJump, 9999)
+
+			afterConsequencePos := len(c.instructions) // 다음에 배출할 명령어가 갖는 오프셋 값을 계산한다.
+			c.changedOperand(jumpNotTruthyPos, afterConsequencePos)
+
+			err := c.Compile(node.Alternative)
+			if err != nil {
+				return err
+			}
+
+			if c.lastInstructionIsPop() {
+				c.removeLastPop()
+			}
+
+			afterAlternativePos := len(c.instructions)
+			c.changedOperand(jumpPos, afterAlternativePos)
+		}
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
 			err := c.Compile(s)
