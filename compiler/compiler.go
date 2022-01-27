@@ -14,11 +14,13 @@ type Compiler struct {
 	constants           []object.Object
 	lastInstruction     EmittedInstruction // 가장 마지막으로 배출한 명려어
 	previousInstruction EmittedInstruction // lastInstruction 직전에 배출된 명령어
+	symbolTable         *SymbolTable
 }
 
 func New() *Compiler {
 	return &Compiler{instructions: code.Instructions{}, constants: []object.Object{},
-		lastInstruction: EmittedInstruction{}, previousInstruction: EmittedInstruction{}}
+		lastInstruction: EmittedInstruction{}, previousInstruction: EmittedInstruction{},
+		symbolTable: NewSymbolTable()}
 }
 
 func (c *Compiler) Compile(node ast.Node) error {
@@ -83,6 +85,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			// 컴파일 방법을 알 수 없는 중위 연산자를 만났을 때 에러를 반환하게 만든다.
 			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
+
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
@@ -167,7 +170,16 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
+		symbol := c.symbolTable.Define(node.Name.Value)
+		c.emit(code.OpSetGlobal, symbol.Index)
 
+	case *ast.Identifier:
+		symbol, ok := c.symbolTable.Resolve(node.Value)
+		if !ok {
+			return fmt.Errorf("undefined variable %s", node.Value)
+		}
+
+		c.emit(code.OpGetGlobal, symbol.Index)
 	}
 
 	return nil
