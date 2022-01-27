@@ -24,12 +24,6 @@ func New(bytecode *compiler.Bytecode) *VM {
 		sp:           0,
 	}
 }
-func (vm *VM) StackTop() object.Object {
-	if vm.sp == 0 {
-		return nil
-	}
-	return vm.stack[vm.sp-1]
-}
 
 // 인출-복호화-실행 주기가 구현
 func (vm *VM) Run() error {
@@ -51,6 +45,9 @@ func (vm *VM) Run() error {
 
 			result := leftValue + rightValue
 			vm.Push(&object.Integer{Value: result})
+
+		case code.OpPop:
+			vm.Pop()
 		}
 	}
 	return nil
@@ -71,4 +68,8 @@ func (vm *VM) Pop() object.Object {
 	o := vm.stack[vm.sp-1]
 	vm.sp--
 	return o
+}
+
+func (vm *VM) LastPoppedStackElem() object.Object {
+	return vm.stack[vm.sp]
 }

@@ -18,6 +18,7 @@ func New() *Compiler {
 
 func (c *Compiler) Compile(node ast.Node) error {
 	switch node := node.(type) {
+
 	case *ast.Program:
 		for _, s := range node.Statements {
 			err := c.Compile(s)
@@ -25,11 +26,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return err
 			}
 		}
+
 	case *ast.ExpressionStatement:
 		err := c.Compile(node.Expression)
 		if err != nil {
 			return err
 		}
+		c.emit(code.OpPop)
+
 	case *ast.InfixExpression:
 		err := c.Compile(node.Left)
 		if err != nil {
@@ -75,7 +79,7 @@ func (c *Compiler) addConstant(obj object.Object) int {
 }
 
 func (c *Compiler) addInstruction(ins []byte) int {
-	posNewInstuction := len(c.instructions)
+	posNewInstruction := len(c.instructions)
 	c.instructions = append(c.instructions, ins...)
-	return posNewInstuction
+	return posNewInstruction
 }
