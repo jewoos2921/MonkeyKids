@@ -7,6 +7,7 @@ import (
 	"fmt"
 )
 
+const GlobalsSize = 65536
 const StackSize = 2048
 
 // true 는 언제나 true, false는 언제나 false 그래서 전역 변수로 정의 (성능면에서)
@@ -20,6 +21,7 @@ type VM struct {
 	instructions code.Instructions
 	stack        []object.Object // stack은 요소늬 수를 나타내는 StackSize만큼의 크기로 미리 할당
 	sp           int             // 언제나 다음값을 가리킴. 다라서 스택 최상단은 stack[sp-1], sp는 언제나 스텍에서 비어있는 다음 슬롯을 가리킨다.
+	globals      []object.Object // 가상머신에서 전역 바인딩 구하기
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
@@ -28,6 +30,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		constants:    bytecode.Constants,
 		stack:        make([]object.Object, StackSize),
 		sp:           0,
+		globals:      make([]object.Object, GlobalsSize),
 	}
 }
 
@@ -105,6 +108,21 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
+		case code.OpSetGlobal:
+			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			vm.globals[globalIndex] = vm.Pop()
+
+		case code.OpGetGlobal:
+			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			err := vm.Push(vm.globals[globalIndex])
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 	return nil
@@ -246,4 +264,10 @@ func isTruthy(obj object.Object) bool {
 	default:
 		return true
 	}
+}
+
+func NewWithGlobalsStore(bytecode *compiler.Bytecode, s []object.Object) *VM {
+	vm := New(bytecode)
+	vm.globals = s
+	return vm
 }

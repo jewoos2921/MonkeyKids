@@ -254,3 +254,10 @@ func (c *Compiler) changedOperand(opPos int, operand int) {
 
 	c.replaceInstruction(opPos, newInstruction)
 }
+
+func NewWithStates(s *SymbolTable, constants []object.Object) *Compiler {
+	compiler := New()
+	compiler.symbolTable = s
+	compiler.constants = constants
+	return compiler
+}
