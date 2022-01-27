@@ -102,6 +102,17 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return fmt.Errorf("unknown operator %s", node.Operator)
 
 		}
+	case *ast.IfExpression:
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+		// OpJumpNotTruthy 명령어에 쓰레기값 9999를 넣어서 배출
+		c.emit(code.OpJumpNotTruthy, 9999)
+		err = c.Compile(node.Consequence)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

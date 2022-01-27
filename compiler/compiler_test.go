@@ -255,3 +255,32 @@ func TestBooleanExpression(t *testing.T) {
 	}
 	runCompilerTests(t, tests)
 }
+
+func TestConditionals(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			// OpPop - *ast.IfExpression 뒤에 나옴
+			// OpConstant - 3333을 스택에 넣음
+			// OpPop - 표현식문 뒤에 나와야 함
+			input:             `if (true) { 10 }; 3333;`,
+			expectedConstants: []interface{}{10, 3333},
+			expectedInstructions: []code.Instructions{
+				// 0000
+				code.Make(code.OpTrue),
+				// 0001
+				// OpJumpNotTruthy 명령어가 올바른 오프셋 값을 가진 피연산자를 배출하도록 만드는것
+				// 올바른 오프셋 값은 node.Consequence 명령어 '바로 다음'을 가리키는 값
+				// node.Consequence 를 컴파일하기 전에 갖도록 해야한다.
+				code.Make(code.OpJumpNotTruthy, 7),
+				// 0004
+				code.Make(code.OpConstant, 0),
+				// 0007
+				code.Make(code.OpPop),
+				// 0008
+				code.Make(code.OpConstant, 1),
+				// 0011
+				code.Make(code.OpPop),
+			}},
+	}
+	runCompilerTests(t, tests)
+}
