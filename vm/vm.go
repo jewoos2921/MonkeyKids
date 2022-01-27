@@ -43,6 +43,14 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpAdd:
+			right := vm.Pop()
+			left := vm.Pop()
+			leftValue := left.(*object.Integer).Value
+			rightValue := right.(*object.Integer).Value
+
+			result := leftValue + rightValue
+			vm.Push(&object.Integer{Value: result})
 		}
 	}
 	return nil
@@ -56,4 +64,11 @@ func (vm *VM) Push(o object.Object) error {
 	vm.sp++
 
 	return nil
+}
+
+// 방금 꺼낸 요소가 있던 자리를 덮어쓰게 된다
+func (vm *VM) Pop() object.Object {
+	o := vm.stack[vm.sp-1]
+	vm.sp--
+	return o
 }
