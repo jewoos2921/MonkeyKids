@@ -77,6 +77,11 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 		if err != nil {
 			t.Errorf("testBooleanObject failed: %s", err)
 		}
+	case *object.Null:
+		if actual != Null {
+			t.Errorf("object is not Null: %T (%+v)", actual, actual)
+		}
+
 	}
 }
 
@@ -155,6 +160,18 @@ func TestConditionals(t *testing.T) {
 		{"if (1 < 2) { 10 }", 10},
 		{"if (1 < 2) { 10 } else { 20 }", 10},
 		{"if (1 > 2) { 10 } else { 20 }", 20},
+		// 둘 다 조건이 참 같은 값이 아니므로 얼터너티브 평가가 강제힌다.
+		// 그러나 둘다 얼터너티브기 없으므로 스택에 남은 값이 Null 이 되길 기대한다.
+		// 그냥하면 패닉이 발생
+		// 조건식 다음에 배출한 OpPop 명령어 때문: 어떤 값도 만들지 않았는데,
+		// 가상 머신은 빈 스택에서 뭔가를 꺼내려하니 문제가 발생 - vm.Null을 스택에 넣도록 고쳐야한다.
+
+		// 스택에 vm.Null을 넣으려면 두가지 선결 조건이 존재
+		// 1) 명령코드를 정의해 가상 머신에 vm.Null을 스택에 넣으라고 알려줘야 한다.
+		// 2) 조건식이 얼터너티브를 갖지 않을 때, 얼터너티브를 삽입하도록 컴파일러를 고쳐야 한다.
+		// 이때 삽입된 얼터너티브에는 vm.Null을 스택에 넣는 새로 정의한 명령코드만 포함하게 된다.
+		{"if (1 > 2) { 10 }", Null},
+		{"if (false) { 10 }", Null},
 	}
 
 	runVmTests(t, tests)

@@ -37,6 +37,8 @@ const (
 	// 조건식 컴파일하기
 	OpJumpNotTruthy // 조건에 따라 점프하는 명령어
 	OpJump          // 점프 명령어
+	// Null
+	OpNull
 )
 
 type Definition struct {
@@ -60,6 +62,7 @@ var definitions = map[Opcode]*Definition{
 	OpBang:          {"OpBang", []int{}},
 	OpJumpNotTruthy: {"OpJumpNotTruthy", []int{2}},
 	OpJump:          {"OpJump", []int{2}},
+	OpNull:          {"OpNull", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
