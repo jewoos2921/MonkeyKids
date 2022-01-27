@@ -1,10 +1,10 @@
 package repl
 
 import (
-	"MonkeyKids/evaluator"
+	"MonkeyKids/compiler"
 	"MonkeyKids/lexer"
-	"MonkeyKids/object"
 	"MonkeyKids/parser"
+	"MonkeyKids/vm"
 	"bufio"
 	"fmt"
 	"io"
@@ -12,9 +12,12 @@ import (
 
 const PROMPT = ">>"
 
+// 컴파일러와 가상머신을 REPL에 연동
+// 면저 입력을 토큰화하고 파싱한 다음, 컴파일하고 프로그래밍을 실행하면 된다.
+// 그리고 전에는 Eval 함수에서 반환값을 출력했지만, 이번에는 가상 머신 스택
+// 가장 위에 있는 객체를 출력하도록 바꾸면 된다.
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
-	env := object.NewEnvironment()
 
 	for {
 		fmt.Fprintf(out, PROMPT)
@@ -22,6 +25,7 @@ func Start(in io.Reader, out io.Writer) {
 		if !scanned {
 			return
 		}
+
 		line := scanner.Text()
 		l := lexer.New(line)
 		p := parser.New(l)
@@ -31,12 +35,23 @@ func Start(in io.Reader, out io.Writer) {
 			printParserErrors(out, p.Errors())
 			continue
 		}
-		// 파서가 반환한 AST program 대신 program을 Eval로 넘간다.
-		evaluated := evaluator.Eval(program, env)
-		if evaluated != nil {
-			io.WriteString(out, evaluated.Inspect())
-			io.WriteString(out, "\n")
+
+		comp := compiler.New()
+		err := comp.Compile(program)
+		if err != nil {
+			fmt.Fprintf(out, "Woops! Compilation failed:\n %s\n", err)
+			continue
 		}
+
+		machine := vm.New(comp.Bytecode())
+		err = machine.Run()
+		if err != nil {
+			fmt.Fprintf(out, "Woops! Executing bytecode failed:\n %s\n", err)
+			continue
+		}
+		stackTop := machine.StackTop()
+		io.WriteString(out, stackTop.Inspect())
+		io.WriteString(out, "\n")
 	}
 }
 
