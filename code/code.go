@@ -27,6 +27,12 @@ const (
 	OpEqual
 	OpNotEqual
 	OpGreaterThan
+	// 전위 표현식
+	// 1. 필요한 명령 코드를 정의한다.
+	// 2. 컴파일러에서 해당 명령 코드를 배출한다.
+	// 3. 가상머신에서 처리한다.
+	OpMinus // -연산자
+	OpBang  // !연산자
 )
 
 type Definition struct {
@@ -46,6 +52,8 @@ var definitions = map[Opcode]*Definition{
 	OpEqual:       {"OpEqual", []int{}},
 	OpNotEqual:    {"OpNotEqual", []int{}},
 	OpGreaterThan: {"OpGreaterThan", []int{}},
+	OpMinus:       {"OpMinus", []int{}},
+	OpBang:        {"OpBang", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
