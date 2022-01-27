@@ -281,6 +281,28 @@ func TestConditionals(t *testing.T) {
 				// 0011
 				code.Make(code.OpPop),
 			}},
+		{
+			input:             `if (true) { 10 } else { 20 }; 3333;`,
+			expectedConstants: []interface{}{10, 20, 3333},
+			expectedInstructions: []code.Instructions{
+				// 0000
+				code.Make(code.OpTrue),
+				// 0001
+				// OpJumpNotTruthy 는 가상머신이 컴파일된 컨시퀀스를 지나치도록 만든다.
+				code.Make(code.OpJumpNotTruthy, 10),
+				// 0004
+				code.Make(code.OpConstant, 0), // 컨시퀀스 - 10을 넣음
+				// 0007
+				code.Make(code.OpJump, 13),
+				// 0010
+				code.Make(code.OpConstant, 1), // 얼터너티브 - 20을 넣음
+				// 0013
+				code.Make(code.OpPop), // 필요하다면 조건식의 값을 뺌
+				// 0014
+				code.Make(code.OpConstant, 2), // 3333을 넣소 , 뺌
+				// 0017
+				code.Make(code.OpPop),
+			}},
 	}
 	runCompilerTests(t, tests)
 }

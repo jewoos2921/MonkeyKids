@@ -113,7 +113,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		// OpJumpNotTruthy 명령어에 쓰레기값 9999를 넣어서 배출
-		c.emit(code.OpJumpNotTruthy, 9999)
+		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+		// jumpNotTruthyPos 는 명령어를 찾을때 사용할 값이다.
+		// OpPop 명령어가 있는지 검사하고, 있다면 제거하는 작업을 마친 이후를 말한다.
 		// node.Consequence 은 표현식
 		// node.Consequence 에서 마지막 OpPop 명령어만 제거해야 한다.
 		err = c.Compile(node.Consequence)
@@ -124,6 +126,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if c.lastInstructionIsPop() {
 			c.removeLastPop()
 		}
+		afterConsequencePos := len(c.instructions) // 다음에 배출할 명령어가 갖는 오프셋 값을 계산한다.
+		c.changedOperand(jumpNotTruthyPos, afterConsequencePos)
+
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
 			err := c.Compile(s)
@@ -190,4 +195,19 @@ func (c *Compiler) lastInstructionIsPop() bool {
 func (c *Compiler) removeLastPop() {
 	c.instructions = c.instructions[:c.lastInstruction.Position]
 	c.lastInstruction = c.previousInstruction
+}
+
+// instructions 슬라이스의 임의의 오프셋 값에 위치한 명령어를 바꿀때 사용
+func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
+	for i := 0; i < len(newInstruction); i++ {
+		c.instructions[pos+i] = newInstruction[i]
+	}
+}
+
+// 피연산자 변경
+func (c *Compiler) changedOperand(opPos int, operand int) {
+	op := code.Opcode(c.instructions[opPos])
+	newInstruction := code.Make(op, operand)
+
+	c.replaceInstruction(opPos, newInstruction)
 }
