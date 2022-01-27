@@ -258,29 +258,29 @@ func TestBooleanExpression(t *testing.T) {
 
 func TestConditionals(t *testing.T) {
 	tests := []compilerTestCase{
-		{
-			// OpPop - *ast.IfExpression 뒤에 나옴
-			// OpConstant - 3333을 스택에 넣음
-			// OpPop - 표현식문 뒤에 나와야 함
-			input:             `if (true) { 10 }; 3333;`,
-			expectedConstants: []interface{}{10, 3333},
-			expectedInstructions: []code.Instructions{
-				// 0000
-				code.Make(code.OpTrue),
-				// 0001
-				// OpJumpNotTruthy 명령어가 올바른 오프셋 값을 가진 피연산자를 배출하도록 만드는것
-				// 올바른 오프셋 값은 node.Consequence 명령어 '바로 다음'을 가리키는 값
-				// node.Consequence 를 컴파일하기 전에 갖도록 해야한다.
-				code.Make(code.OpJumpNotTruthy, 7),
-				// 0004
-				code.Make(code.OpConstant, 0),
-				// 0007
-				code.Make(code.OpPop),
-				// 0008
-				code.Make(code.OpConstant, 1),
-				// 0011
-				code.Make(code.OpPop),
-			}},
+		//{
+		//	// OpPop - *ast.IfExpression 뒤에 나옴
+		//	// OpConstant - 3333을 스택에 넣음
+		//	// OpPop - 표현식문 뒤에 나와야 함
+		//	input:             `if (true) { 10 }; 3333;`,
+		//	expectedConstants: []interface{}{10, 3333},
+		//	expectedInstructions: []code.Instructions{
+		//		// 0000
+		//		code.Make(code.OpTrue),
+		//		// 0001
+		//		// OpJumpNotTruthy 명령어가 올바른 오프셋 값을 가진 피연산자를 배출하도록 만드는것
+		//		// 올바른 오프셋 값은 node.Consequence 명령어 '바로 다음'을 가리키는 값
+		//		// node.Consequence 를 컴파일하기 전에 갖도록 해야한다.
+		//		code.Make(code.OpJumpNotTruthy, 7),
+		//		// 0004
+		//		code.Make(code.OpConstant, 0),
+		//		// 0007
+		//		code.Make(code.OpPop),
+		//		// 0008
+		//		code.Make(code.OpConstant, 1),
+		//		// 0011
+		//		code.Make(code.OpPop),
+		//	}},
 		{
 			input:             `if (true) { 10 } else { 20 }; 3333;`,
 			expectedConstants: []interface{}{10, 20, 3333},
@@ -326,6 +326,49 @@ func TestConditionals(t *testing.T) {
 				// 0015
 				code.Make(code.OpPop),
 			}},
+	}
+	runCompilerTests(t, tests)
+}
+
+func TestGlobalLetStatements(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			// let 문이 OpSetGlobal 명령어를 배출하는지 확인
+			input:             `let one = 1; let two = 2;`,
+			expectedConstants: []interface{}{1, 2},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpSetGlobal, 1),
+			},
+		},
+		{
+			// 식별자가 앞서 만든 바인딩으로 환원되는지 OpSetGlobal 명령어를 통해 확인
+			// OpSetGlobal과 OpGetGlobal의 피연산자가 일치하는지 확인
+			input:             `let one = 1; one;`,
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			// 전역 바인딩에서 값을 가져오는 작업과 전역 바인딩에 값을 저장하는 작업을 섞어서 동작하는지 확인
+			// 같은 식별자를 참조하는 피연산자는 서로 값이 일치해야 한다.
+			input:             `let one = 1; let two = one; two;`,
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpSetGlobal, 1),
+				code.Make(code.OpGetGlobal, 1),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 	runCompilerTests(t, tests)
 }

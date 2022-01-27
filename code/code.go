@@ -39,11 +39,14 @@ const (
 	OpJump          // 점프 명령어
 	// Null
 	OpNull
+	// 바인딩 컴파일하기
+	OpGetGlobal
+	OpSetGlobal
 )
 
 type Definition struct {
-	Name          string
-	OperandWidths []int
+	Name          string // 명령코드
+	OperandWidths []int  // 8 비트 (전역 바인딩 고유 숫자 값)
 }
 
 var definitions = map[Opcode]*Definition{
@@ -63,6 +66,8 @@ var definitions = map[Opcode]*Definition{
 	OpJumpNotTruthy: {"OpJumpNotTruthy", []int{2}},
 	OpJump:          {"OpJump", []int{2}},
 	OpNull:          {"OpNull", []int{}},
+	OpGetGlobal:     {"OpGetGlobal", []int{2}},
+	OpSetGlobal:     {"OpSetGlobal", []int{2}},
 }
 
 func Lookup(op byte) (*Definition, error) {

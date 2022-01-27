@@ -159,6 +159,15 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 
+	case *ast.LetStatement:
+		// let문을 만나면 가장 먼저 연산자= 오른편에 있는 표현식을 컴파일
+		// 이표현식이 만들어내는 Value가 식별자 이름에 바인딩한다.
+		// 여기서 표현식을 컴파일한다는 것는 표현식이 만들어낸 값을 가상 머신이 스택에 넣도록 지시
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
