@@ -18,6 +18,11 @@ const (
 	OpSub
 	OpMul
 	OpDiv
+	// 불리터럴
+	// 불리터럴을 OpConstant 명령어로 컴파일되어야 한다. true와 false를 상수로 취급해도 되지만 이럴경우 자원을 낭비하는 꼴이다.
+	// 바이트코드에서 사용할 자원만 낭비하는 게 아니라, 컴파일러와 가상 머신에서 사용할 자원도 낭비된다.
+	OpTrue
+	OpFalse
 )
 
 type Definition struct {
@@ -32,6 +37,8 @@ var definitions = map[Opcode]*Definition{
 	OpSub:      {"OpSub", []int{}},
 	OpMul:      {"OpMul", []int{}},
 	OpDiv:      {"OpDiv", []int{}},
+	OpTrue:     {"OpTrue", []int{}},
+	OpFalse:    {"OpFalse", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
