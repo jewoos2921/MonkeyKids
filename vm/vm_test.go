@@ -135,6 +135,7 @@ func TestBooleanExpression(t *testing.T) {
 		{"!!false", false},
 		{"!5", false},
 		{"!!5", true},
+		{"!(if (false) { 5; })", true},
 	}
 	runVmTests(t, tests)
 }
@@ -172,6 +173,7 @@ func TestConditionals(t *testing.T) {
 		// 이때 삽입된 얼터너티브에는 vm.Null을 스택에 넣는 새로 정의한 명령코드만 포함하게 된다.
 		{"if (1 > 2) { 10 }", Null},
 		{"if (false) { 10 }", Null},
+		{"if ((if (false) { 10 })) { 10 } else { 20 }", 20},
 	}
 
 	runVmTests(t, tests)

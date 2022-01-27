@@ -35,6 +35,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 func (vm *VM) Run() error {
 	for ip := 0; ip < len(vm.instructions); ip++ {
 		op := code.Opcode(vm.instructions[ip])
+
 		switch op {
 		case code.OpConstant:
 			constIndex := code.ReadUint16(vm.instructions[ip+1:])
@@ -94,6 +95,15 @@ func (vm *VM) Run() error {
 			condition := vm.Pop()
 			if !isTruthy(condition) {
 				ip = pos - 1
+			}
+
+			// 조건식은 표현식이면 표현식이라면 어떤 것과도 바꿔 쓸 수 있다. : 어떤 표현식이든 가상 머신에서 Null을 만들 수 있다.
+			// 가상머신에서는 executeBinaryOperation처럼 의도하지 않은 값이 발생하면 에러처리
+			// 명시적으로 Null을 처리해야 하는 함수와 메서드가 있다. : executeBangOperator
+		case code.OpNull:
+			err := vm.Push(Null)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -198,6 +208,8 @@ func (vm *VM) executeBangOperator() error {
 		return vm.Push(False)
 	case False:
 		return vm.Push(True)
+	case Null:
+		return vm.Push(True)
 	default:
 		return vm.Push(False)
 	}
@@ -224,8 +236,13 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 
 func isTruthy(obj object.Object) bool {
 	switch obj := obj.(type) {
+
 	case *object.Boolean:
 		return obj.Value
+
+	case *object.Null:
+		return false
+
 	default:
 		return true
 	}
