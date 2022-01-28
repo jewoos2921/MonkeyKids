@@ -7,6 +7,7 @@ import (
 
 // 내장 함수들
 var builtins = map[string]*object.Builtin{
+
 	"len": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			// len 함수를 호출하는 행
@@ -41,6 +42,7 @@ var builtins = map[string]*object.Builtin{
 			return NULL
 		},
 	},
+
 	"last": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -57,6 +59,7 @@ var builtins = map[string]*object.Builtin{
 			return NULL
 		},
 	},
+
 	"rest": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
@@ -75,6 +78,7 @@ var builtins = map[string]*object.Builtin{
 			return NULL
 		},
 	},
+
 	"push": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 2 {
@@ -92,6 +96,7 @@ var builtins = map[string]*object.Builtin{
 			return &object.Array{Elements: newElements}
 		},
 	},
+
 	"puts": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			for _, arg := range args {
