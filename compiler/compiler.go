@@ -5,6 +5,7 @@ import (
 	"MonkeyKids/code"
 	"MonkeyKids/object"
 	"fmt"
+	"sort"
 )
 
 // 컴파일러를 고쳐서 마지막으로 배출한 명령어 둘을 추적해야한다.
@@ -193,6 +194,26 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 		c.emit(code.OpArray, len(node.Elements))
+
+	case *ast.HashLiteral:
+		var keys []ast.Expression
+		for k := range node.Pairs {
+			keys = append(keys, k)
+		}
+		// Go언어에서 map으로 range를 사용해서 반복하면, 순회 순서가 특정되지 않으며 다음에
+		// 다시 반복했을 때 같은 순서가 보장되지 않는다.
+		// 만약 안정된 반복순서가 필요하다면 이런 반복 순서를 명시하고
+		// 있는 별도의 자료구조를 관리해야 한다.
+		sort.Slice(keys, func(i, j int) bool {
+			return keys[i].String() < keys[j].String()
+		})
+		for _, k := range keys {
+			err := c.Compile(k)
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(code.OpHash, len(node.Pairs)*2)
 	}
 
 	return nil

@@ -392,7 +392,7 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 			return key
 		}
 
-		hashKey, ok := key.(object.HashTable)
+		hashKey, ok := key.(object.Hashable)
 
 		if !ok {
 			return newError("unusable as hash key: %s", key.Type())
@@ -411,7 +411,7 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 
 func evalHashIndexExpression(hash object.Object, index object.Object) object.Object {
 	hashObject := hash.(*object.Hash)
-	key, ok := index.(object.HashTable)
+	key, ok := index.(object.Hashable)
 	if !ok {
 		return newError("unusable as has key: %s", index.Type())
 	}

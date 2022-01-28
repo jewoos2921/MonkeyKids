@@ -196,6 +196,6 @@ func (h *Hash) Inspect() string {
 	return out.String()
 }
 
-type HashTable interface {
+type Hashable interface {
 	HashKey() HashKey
 }
