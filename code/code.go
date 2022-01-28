@@ -42,6 +42,8 @@ const (
 	// 바인딩 컴파일하기
 	OpGetGlobal
 	OpSetGlobal
+	// 문자열
+	OpArray
 )
 
 type Definition struct {
@@ -68,6 +70,7 @@ var definitions = map[Opcode]*Definition{
 	OpNull:          {"OpNull", []int{}},
 	OpGetGlobal:     {"OpGetGlobal", []int{2}},
 	OpSetGlobal:     {"OpSetGlobal", []int{2}},
+	OpArray:         {"OpArray", []int{2}},
 }
 
 func Lookup(op byte) (*Definition, error) {

@@ -123,6 +123,17 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpArray:
+			numElements := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+
+			array := vm.buildArray(vm.sp-numElements, vm.sp)
+			vm.sp = vm.sp - numElements
+
+			err := vm.Push(array)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -285,4 +296,13 @@ func (vm *VM) executeBinaryStringOperation(op code.Opcode, left object.Object, r
 	rightValue := right.(*object.String).Value
 
 	return vm.Push(&object.String{Value: leftValue + rightValue})
+}
+
+func (vm *VM) buildArray(startIndex int, endIndex int) object.Object {
+	elements := make([]object.Object, endIndex-startIndex)
+
+	for i := startIndex; i < endIndex; i++ {
+		elements[i-startIndex] = vm.stack[i]
+	}
+	return &object.Array{Elements: elements}
 }

@@ -81,12 +81,30 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 		if actual != Null {
 			t.Errorf("object is not Null: %T (%+v)", actual, actual)
 		}
+
 	case string:
 		err := testStringObject(expected, actual)
 		if err != nil {
 			t.Errorf("testStringObject failed: %s", err)
 		}
 
+	case []int:
+		array, ok := actual.(*object.Array)
+		if !ok {
+			t.Errorf("object not Array: %T (%+v)", actual, actual)
+		}
+
+		if len(array.Elements) != len(expected) {
+			t.Errorf("wrong num of elements. want=%d, got=%d", len(expected), len(array.Elements))
+			return
+		}
+
+		for i, expectedElem := range expected {
+			err := testIntegerObject(int64(expectedElem), array.Elements[i])
+			if err != nil {
+				t.Errorf("testIntegerObject failed: %s", err)
+			}
+		}
 	}
 }
 
@@ -214,4 +232,16 @@ func testStringObject(expected string, actual object.Object) error {
 		return fmt.Errorf("object has wrong value. got=%q, want=%q", result.Value, expected)
 	}
 	return nil
+}
+
+func TestArrayLiteral(t *testing.T) {
+	tests := []vmTestCase{
+		// 빈배열 리터럴이 동작하는지 확인 해야한다.
+		// 컴파일러 보다 가상머신 쪽에서 오프바이원 에러가 더 발생하기 쉽다.
+		// 오프바이원 에러: 경계에서 하나를 빼먹어서 발생하는 에러, 반복문에서 하나를 더 많이 혹은 더 적게 진행해서 발생하는 에러
+		{"[]", []int{}},
+		{"[1, 2, 3]", []int{1, 2, 3}},
+		{"[1 + 2, 3 * 4, 5 + 6]", []int{3, 12, 11}},
+	}
+	runVmTests(t, tests)
 }
