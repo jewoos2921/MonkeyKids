@@ -14,6 +14,7 @@ var builtins = map[string]*object.Builtin{
 			if len(args) != 1 {
 				return newError("wrong number of arguments. got=%d, want=1", len(args))
 			}
+			// 배열을 활용
 			switch arg := args[0].(type) {
 			case *object.Array:
 				return &object.Integer{Value: int64(len(arg.Elements))}
@@ -27,7 +28,7 @@ var builtins = map[string]*object.Builtin{
 		},
 	},
 
-	"Fn": &object.Builtin{
+	"first": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if len(args) != 1 {
 				return newError("wrong number of arguments. got=%d, want=1", len(args))

@@ -7,33 +7,41 @@ import (
 	"testing"
 )
 
+// Monkey 소스코드를 입력으로 제공하고 나서, 파서가 만들어냈으면 하는 AST형태를 기댓값으로 설정
+// AST노드의 모든 필드를 최대한 빠짐없이 검사하는 방식으로 기댓값을 설정
+// 파서 작업은 오프바이원 버그가 많이 생김
+// 여기서 렉서에 대한 목을 만들거나 스텁은 만들지 않음
+// 대신 소스 코드를 입력으로 넣음
+// Mock: 비싸거나 복잡한 리소스에 의존하는 객체를 테스트하기 위해 항상 같은 값을 내도록 만들어진 가짜 리소스
+// Stub: 주어진 대답만 하도록 하는 테스트 장치
+
 func TestLetStatements(t *testing.T) {
-	input := `let x = 5; let y = 10; let foobar = 838383`
-
-	l := lexer.New(input)
-	p := New(l)
-
-	program := p.ParseProgram()
-	checkParserErrors(t, p)
-	if program == nil {
-		t.Fatalf("ParseProgram() return nil")
-	}
-
-	if len(program.Statements) != 3 {
-		t.Fatalf("program.Statements does not contain 3 statements. got=%d", len(program.Statements))
-	}
 
 	tests := []struct {
+		input              string
 		expectedIdentifier string
+		expectedValue      interface{}
 	}{
-		{"x"},
-		{"y"},
-		{"foobar"},
+		{"let x = 5;", "x", 5},
+		{"let y = true;", "y", true},
+		{"let foobar = y;", "foobar", "y"},
 	}
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
 
-	for i, tt := range tests {
-		stmt := program.Statements[i]
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements does not contain 1 statements. got=%d", len(program.Statements))
+		}
+		stmt := program.Statements[0]
 		if !testLetStatement(t, stmt, tt.expectedIdentifier) {
+			return
+		}
+		val := stmt.(*ast.LetStatement).Value
+		if !testLiteralExpression(t, val, tt.expectedValue) {
 			return
 		}
 	}
@@ -161,12 +169,12 @@ func TestParsingPrefixExpressions(t *testing.T) {
 	prefixTests := []struct {
 		input    string
 		operator string
-		value    interface{}
+		value    int64
 	}{
 		{"!15;", "!", 15},
 		{"-15", "-", 15},
-		{"!true", "!", true},
-		{"!false", "!", false},
+		//{"!true", "!", true},
+		//{"!false", "!", false},
 	}
 
 	for _, tt := range prefixTests {
@@ -191,7 +199,7 @@ func TestParsingPrefixExpressions(t *testing.T) {
 			t.Fatalf("exp.Operator is not '%s'. got=%s", tt.operator, exp.Operator)
 		}
 
-		if !testIntegerLiteral(t, exp.Right, int64(tt.value)) {
+		if !testIntegerLiteral(t, exp.Right, tt.value) {
 
 			return
 		}
@@ -213,9 +221,11 @@ func testIntegerLiteral(t *testing.T, il ast.Expression, value int64) bool {
 		t.Errorf("integ.TokenLiteral not %d. got=%s", value, integ.TokenLiteral())
 		return false
 	}
+
 	return true
 }
-func TestParsingInfixExpression(t *testing.T) {
+
+func TestParsingInfixExpressions(t *testing.T) {
 	infixTests := []struct {
 		input      string
 		leftValue  int64
@@ -263,6 +273,7 @@ func TestParsingInfixExpression(t *testing.T) {
 		}
 	}
 }
+
 func testIdentifier(t *testing.T, exp ast.Expression, value string) bool {
 	ident, ok := exp.(*ast.Identifier)
 	if !ok {
@@ -305,15 +316,18 @@ func testBooleanLiteral(t *testing.T, exp ast.Expression, value bool) bool {
 	}
 
 	if bo.Value != value {
-
+		t.Errorf("bo.Value not %t. got=%t", value, bo.Value)
+		return false
 	}
-
 	if bo.TokenLiteral() != fmt.Sprintf("%t", value) {
-
+		t.Errorf("bo.TokenLiteral not %t. got=%s", value, bo.TokenLiteral())
+		return false
 	}
+	return true
 }
 
-func testInfixExpression(t *testing.T, exp ast.Expression, left interface{}, operator string, right interface{}) bool {
+func testInfixExpression(t *testing.T, exp ast.Expression,
+	left interface{}, operator string, right interface{}) bool {
 	opExp, ok := exp.(*ast.InfixExpression)
 	if !ok {
 		t.Errorf("exp is not ast.InfixExpression. got=%T(%s)", exp, exp)
@@ -377,7 +391,8 @@ func TestParsingArrayLiterals(t *testing.T) {
 	testInfixExpression(t, array.Elements[2], 3, "+", 3)
 }
 
-//
+// 파서가 인덱스 연산자가 갖는 우선순위를 올바르게 처리해야 한다는점
+// 인덱스 연산자는 모든 연산자 중에서 가장 높은 우선순위를 갖는다.
 func TestParsingIndexExpression(t *testing.T) {
 	input := "myArray[1 + 1]"
 
@@ -400,6 +415,14 @@ func TestParsingIndexExpression(t *testing.T) {
 
 }
 
+// 프랫 파싱은 어떻게 동작하는가
+// prefixParseFns nud-null denotation
+// infixParseFn led left denotation
+// 1 + 2  + 3;
+// 가장 어려운 문제는 AST 노드들을 규칙에 맞게 중첩하는 것이다.
+// 그룹표현식은 별도로 AST 타입을 정의할 필요가 없다.
+// 따라서 기존 AST를 변경하지 않고도 그룹 표현삭을 파싱 가능
+// myArray[0]에 있는 중위연산자'['를  myArray를 왼쪽 피연산자, 0을 오른쪽 피연산자로 처리해야 한다.
 func TestOperatorPrecedenceParsing(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -529,4 +552,129 @@ func TestParsingHashLiteralsWithExpressions(t *testing.T) {
 		}
 		testFunc(value)
 	}
+}
+
+func TestIfExpression(t *testing.T) {
+	input := `if (x < y) { x } else { y }`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain %d statements. got=%d\n", 1, len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	exp, ok := stmt.Expression.(*ast.IfExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not ast.IfExpression. got=%T", stmt.Expression)
+	}
+	if !testInfixExpression(t, exp.Condition, "x", "<", "y") {
+		return
+	}
+	if len(exp.Consequence.Statements) != 1 {
+		t.Errorf("consequence is not statements. got=%d\n", len(exp.Consequence.Statements))
+	}
+	consequence, ok := exp.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("exp.Consequence.Statements[0] is not ast.ExpressionStatement. got=%T",
+			exp.Consequence.Statements[0])
+	}
+	if !testIdentifier(t, consequence.Expression, "x") {
+		return
+	}
+	if exp.Alternative != nil {
+		t.Errorf("exp.Alternative was not nil. got=%+v", exp.Alternative)
+	}
+}
+
+// *ast.FunctionLiteral이 현재 위치에 있는지 검사한다.
+// 파라미터 리스트 가 맞는지 검사한다.
+// 함수 몸체가 바르게 구성된 명령문이지 검사한다.
+func TestFunctionExpression(t *testing.T) {
+	input := `fn(x, y) { x + y; }`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain %d statements. got=%d\n",
+			1, len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	function, ok := stmt.Expression.(*ast.FunctionLiteral)
+	if !ok {
+		t.Fatalf("stmt.Expression is not ast.FunctionLiteral. got=%T", stmt.Expression)
+	}
+
+	if len(function.Body.Statements) != 1 {
+		t.Errorf("function.Body.Statements has not 1 statements. got=%d\n", len(function.Body.Statements))
+	}
+	bodyStmt, ok := function.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("function.Body.Statements[0] is not ast.ExpressionStatement. got=%T",
+			function.Body.Statements[0])
+	}
+	testInfixExpression(t, bodyStmt.Expression, "x", "+", "y")
+}
+func TestFunctionParameterExpression(t *testing.T) {
+	tests := []struct {
+		input          string
+		expectedParams []string
+	}{
+		{"fn() {}", []string{}},
+		{"fn() {x}", []string{"x"}},
+		{"fn(x, y, z) {}", []string{"x", "y", "z"}},
+	}
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		function := stmt.Expression.(*ast.FunctionLiteral)
+
+		if len(function.Parameters) != len(tt.expectedParams) {
+			t.Errorf("length paramters wrong. want %d, got=%d\n", len(tt.expectedParams), len(function.Parameters))
+		}
+		for i, ident := range tt.expectedParams {
+			testLiteralExpression(t, function.Parameters[i], ident)
+		}
+	}
+}
+func TestCallExpressionExpression(t *testing.T) {
+	input := "add(1, 2 * 3, 4 + 5)"
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain %d statements. got=%d\n", 1, len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	exp, ok := stmt.Expression.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not ast.CallExpression. got=%T", stmt.Expression)
+	}
+	if !testIdentifier(t, exp.Function, "add") {
+		return
+	}
+	if len(exp.Arguments) != 3 {
+		t.Fatalf("Wrong length of arguments. got=%d", len(exp.Arguments))
+	}
+	testLiteralExpression(t, exp.Arguments[0], 1)
+	testInfixExpression(t, exp.Arguments[1], 2, "*", 3)
+	testInfixExpression(t, exp.Arguments[2], 4, "+", 5)
 }

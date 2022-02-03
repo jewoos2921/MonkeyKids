@@ -30,7 +30,7 @@ func TestEvalIntegerExpression(t *testing.T) {
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
-		testInterObject(t, evaluated, tt.expected)
+		testIntegerObject(t, evaluated, tt.expected)
 	}
 }
 
@@ -46,7 +46,7 @@ func testEval(input string) object.Object {
 	return Eval(program, env)
 }
 
-func testInterObject(t *testing.T, obj object.Object, expected int64) bool {
+func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 	result, ok := obj.(*object.Integer)
 	if !ok {
 		t.Errorf("object is not Integer. got=%d (%+v)", obj, obj)
@@ -139,7 +139,7 @@ func TestIfElseExpressions(t *testing.T) {
 		evaluated := testEval(tt.input)
 		integer, ok := tt.expected.(int)
 		if ok {
-			testInterObject(t, evaluated, int64(integer))
+			testIntegerObject(t, evaluated, int64(integer))
 		} else {
 			testNullObject(t, evaluated)
 		}
@@ -167,7 +167,7 @@ func TestReturnState(t *testing.T) {
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
-		testInterObject(t, evaluated, tt.expected)
+		testIntegerObject(t, evaluated, tt.expected)
 	}
 }
 
@@ -211,13 +211,15 @@ func TestLetStatements(t *testing.T) {
 		input    string
 		expected int64
 	}{
-		{"let a = 5; a;z cc ", 5},
+		{"let a = 5; a; ", 5},
 		{"let a = 5 * 5; a;", 25},
 		{"let a = 5; let b = a; b;", 5},
 		{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
 	}
+	// let 문안에 표현식을 평가하는 것
+	// 이름에 바인딩된 식별자를 평가한는 동작
 	for _, tt := range tests {
-		testInterObject(t, testEval(tt.input), tt.expected)
+		testIntegerObject(t, testEval(tt.input), tt.expected)
 	}
 }
 
@@ -257,13 +259,16 @@ func TestFunctionApplication(t *testing.T) {
 		{"fn(x) { x; }; fn(5); 5;", 5},
 	}
 	for _, tt := range tests {
-		testInterObject(t, testEval(tt.input), tt.expected)
+		testIntegerObject(t, testEval(tt.input), tt.expected)
 	}
 }
 
+// 클로저는 그 함수가 정의된 환경을 담아내는 함수이다.
+// 클로저는 자신의 환경을 담고 움직이고 호출됐을 때 그 환경에 접근
 func TestClosures(t *testing.T) {
 	input := `let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(2);`
-	testInterObject(t, testEval(input), 4)
+	// newAdder는 고차함수: 함수를 반환하거나 다른 함수를 인수로 받는 함수
+	testIntegerObject(t, testEval(input), 4)
 }
 
 func TestStringLiteral(t *testing.T) {
@@ -295,7 +300,7 @@ func TestBuiltinFunctions(t *testing.T) {
 
 		switch expected := tt.expected.(type) {
 		case int:
-			testInterObject(t, evaluated, int64(expected))
+			testIntegerObject(t, evaluated, int64(expected))
 		case string:
 			errObj, ok := evaluated.(*object.Error)
 			if !ok {
@@ -325,10 +330,6 @@ func TestArrayLiteral(t *testing.T) {
 	testIntegerObject(t, result.Elements[2], 6)
 }
 
-func testIntegerObject(t *testing.T, o object.Object, i int) {
-
-}
-
 // 오프바이원 에러에 대비
 func TestArrayIndexExpression(t *testing.T) {
 	tests := []struct {
@@ -350,7 +351,7 @@ func TestArrayIndexExpression(t *testing.T) {
 		evaluated := testEval(tt.input)
 		integer, ok := tt.expected.(int)
 		if ok {
-			testInterObject(t, evaluated, int64(integer))
+			testIntegerObject(t, evaluated, int64(integer))
 		} else {
 			testNullObject(t, evaluated)
 		}
@@ -404,9 +405,22 @@ func TestHashIndexExpression(t *testing.T) {
 		evaluated := testEval(tt.input)
 		integer, ok := tt.expected.(int)
 		if ok {
-			testInterObject(t, evaluated, int64(integer))
+			testIntegerObject(t, evaluated, int64(integer))
 		} else {
 			testNullObject(t, evaluated)
 		}
+	}
+}
+func TestStringConcatenation(t *testing.T) {
+	input := `"Hello" + " " + "World!"`
+	evaluated := testEval(input)
+
+	str, ok := evaluated.(*object.String)
+	if !ok {
+		t.Fatalf("object is not String. got=%T (%+v)", evaluated, evaluated)
+	}
+
+	if str.Value != "Hello World!" {
+		t.Errorf("String has Wrong value. got=%q", str.Value)
 	}
 }

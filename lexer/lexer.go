@@ -89,9 +89,12 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.LBRACE, l.ch)
 	case '}':
 		tok = newToken(token.RBRACE, l.ch)
+		// 문자열
 	case '"':
 		tok.Type = token.STRING
 		tok.Literal = l.readString()
+		// 배열
+		// 개별적으로 접근이 가능
 	case '[':
 		tok = newToken(token.LBRACKET, l.ch)
 	case ']':

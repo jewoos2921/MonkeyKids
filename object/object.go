@@ -8,7 +8,10 @@ import (
 	"strings"
 )
 
-type ObjectType string
+// 트리 순회 평가기
+// 호스트언어인 Go로 Monkey의 값을 표현하는 방법
+// 객체 표현하기
+// 호스트 언어로 표현한 값, 게스트 언어로 사용할 사용자들에게 어떻게 보여주어야 하는가?
 
 const (
 	INTEGER_OBJ      = "INTEGER"
@@ -17,12 +20,18 @@ const (
 	RETURN_VALUE_OBJ = "RETURN"
 	ERROR_OBJ        = "ERROR"
 	FUNCTION_OBJ     = "FUNCTION"
-	STRING_OBJ       = "STRING"
+	STRING_OBJ       = "STRING" // 문자열로 표현하는것은 쉽다. Go언어가 가진 자료형을 재사용, 객체만 정의하면 된다.
 	BUILTIN_OBJ      = "BUILTIN"
 	ARRAY_OBJ        = "ARRAY"
 	HASH_OBJ         = "HASH"
 )
 
+// 모든값을 Object 인터페이스를 만족하는 구조체로 감쌀 것이다.
+
+type ObjectType string
+
+// Object가 인터페이스인 경우는 모든값은 내부 표현을 다르게 할 필요가 있기 때문
+// 불과 정수를 동일한 구조체 필드로 끼워 맞추기 보다 서로 다른 구조체를 2개로 정의하는게 훨씬 쉽다.
 type Object interface {
 	Type() ObjectType
 	Inspect() string
@@ -49,6 +58,9 @@ type Null struct{}
 func (n *Null) Type() ObjectType { return NULL_OBJ }
 func (n *Null) Inspect() string  { return "null" }
 
+// 평가하는 도중에 return 문을 만나면, 원래 반환해야 할 값을 객체 하나로 감싸서 처리한다.
+// 그래야만 평가기가 이 객체를 추적 가능: 평가 도중에 평가를 계속 해야할지 말지 결정할 때,
+// 이 객체가 필요하기 때문에
 // ReturnValue는 다른 객체를 감싸는 래퍼일뿐 다른 내용은 없다.
 type ReturnValue struct {
 	Value Object
@@ -63,8 +75,13 @@ type Error struct {
 }
 
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
-func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 
+// 상용 인터츠리터라면 스택 트레이스를 담
+// 문제가 발생한 지점의 행과열 번호를 같이 넣어서 단순한 메시지보다 더 많은 정보를 줄 수도 있다.
+// 렉서가 토큰에 행과 열번호를 달아놨으면 어렵지 않다.
+func (e *Error) Inspect() string { return "ERROR: " + e.Message }
+
+// Env가 있는 이유: 함수는 자기환경에서 움직이기 때문에
 type Function struct {
 	Parameters []*ast.Identifier
 	Body       *ast.BlockStatement

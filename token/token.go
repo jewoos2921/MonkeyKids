@@ -17,7 +17,7 @@ const (
 	// 식별자 + 리터럴
 	IDENT  = " IDENT"
 	INT    = "INT"
-	STRING = "STRING"
+	STRING = "STRING" // 문자열 지원
 
 	// 연산자
 	ASSIGN   = "="
