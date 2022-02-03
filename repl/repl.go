@@ -1,5 +1,8 @@
 package repl
 
+// REPL(Read-Eval-Print-Loop)는 단일 사용자의 입력을 받아서 이를 평가하고,
+// 그결과를 사용자에게 다시 반환하는 단순한 컴퓨터 프로그래밍 환경
+// 렉서->파서->추상구문트리->내부객체시스템->평가
 import (
 	"MonkeyKids/compiler"
 	"MonkeyKids/lexer"

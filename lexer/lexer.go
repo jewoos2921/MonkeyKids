@@ -1,12 +1,25 @@
 package lexer
 
+// 소스코드->토큰->추상구문트리
+// 소스코드를 토큰열로 변환
+// 렉싱(어휘분석)
+// 가장먼저 토큰을 정의해야 한다
+// 렉서는 소스코드를 입력으로 받고 표헌하는 토큰열을 결과로 출력
+// 흝어가면서 토큰을 인식할 때마다 결과를 출력한다.
+// 버퍼도 필요업고 토큰을 저장할 필요 없다.
+// 상용버전에서는 파일 이름과 행번호를 토큰에 붙여, 렉싱에서 생긴 에러와 파싱에서 생긴 에러를 더 쉽게 추적
 import "MonkeyKids/token"
 
+// ASCII 문자만 지원
+// 유니코드와 UTF8을 지원하기 위해서는 ch를 rune타입으로 바꾸고 다음 문자들을 읽는 방식을 바꿔야 한다.
+// 유니코드는 문자 하나에 여러개의 바이트가 할당
 type Lexer struct {
-	input        string
-	position     int
-	readPosition int
-	ch           byte
+	input string
+	// 입력 문자를 가리키는 포인터가 2개인 이유는 다음 처리 대상을 알아내려면 입력 문자열에서 다음 문자를 '미리 살펴봄' 과 동시에
+	// 현재 문자를 보존할 수 있어야 한다.
+	position     int  // 입력에서 현재 위치(현재 문자를 가리킴)
+	readPosition int  // 입력에서 현재 읽는 위치(현재 문자의 다음을 가리킴)
+	ch           byte // 현재 조사하고 있는 문자
 }
 
 func New(input string) *Lexer {
@@ -17,20 +30,25 @@ func New(input string) *Lexer {
 
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
+		// 만약 끝에 도달시 0을 삽입
 		l.ch = 0
 	} else {
 		l.ch = l.input[l.readPosition]
 	}
-	l.position = l.readPosition
-	l.readPosition += 1
+	l.position = l.readPosition // 항상 다음에 읽어야할  위치
+	l.readPosition += 1         // 항상 마지막으로 읶은 위치
 }
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
 	l.skipWhitespace()
 	switch l.ch {
+	// 두문자 토큰을 case문 하나를 추가 하지 앟는 이유
+	// byte인 l.ch를 문자열인 "=="과 비교가 불가
 	case '=':
 		if l.peekChar() == '=' {
+			// readChar 호출전에 l.ch를 지역 변수에 저장
+			// 현재 문자를 기억한 상태에서 안전하게 렉서를 진행
 			ch := l.ch
 			l.readChar()
 			literal := string(ch) + string(l.ch)
@@ -88,7 +106,7 @@ func (l *Lexer) NextToken() token.Token {
 		if isLetter(l.ch) {
 			tok.Literal = l.readIdentifier()
 			tok.Type = token.LookupIdent(tok.Literal)
-			return tok
+			return tok // 조기종료(꼭 필요)
 		} else if isDigit(l.ch) {
 			tok.Type = token.INT
 			tok.Literal = l.readNumber()
@@ -134,6 +152,9 @@ func (l *Lexer) readNumber() string {
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
 }
+
+// readChar과 비슷,l.position과 l.readPosition을 증가시키지 않는다.
+//다음에 나올 입력을 미리 살펴보고 싶은 것
 func (l *Lexer) peekChar() byte {
 	if l.readPosition >= len(l.input) {
 		return 0
