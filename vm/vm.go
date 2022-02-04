@@ -306,6 +306,7 @@ func isTruthy(obj object.Object) bool {
 	}
 }
 
+// 가상 머신에서 사용할 새로운 생성자
 func NewWithGlobalsStore(bytecode *compiler.Bytecode, s []object.Object) *VM {
 	vm := New(bytecode)
 	vm.globals = s

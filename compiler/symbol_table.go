@@ -6,20 +6,22 @@ package compiler
 // 식별자를 심벌이라고 부르는 이유
 // 심벌이 사용된 위치, 스코프, 전에 선언된 적이 있는지 여부, 연관된 값이 갖는 타입, 그 밖에 컴파일이나 인터프리팅 등에 유용한 모든 데이터
 
-// 1) 전역 스코프에 있는 식별자를 고유값과 연관시킨다. - 정의하기
+// 1) 전역 스코프에 있는 식별자를 고유값과 연관시킨다 - 정의하기
 // 2) 주어진 식뱔자에 이미 연관된 고유값을 가져온다 - 환원하기
 
 type SymbolScope string
 
 const (
-	GlobalScope SymbolScope = "GLOBAL"
+	GlobalScope SymbolScope = "GLOBAL" // 스코프를 구분할 필요가 있다.
 )
 
+// 심벌을 처리할 때 필요한 정보를 담음
 type Symbol struct {
 	Name  string
 	Scope SymbolScope
 	Index int
 }
+
 type SymbolTable struct {
 	store          map[string]Symbol
 	numDefinitions int

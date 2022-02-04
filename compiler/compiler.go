@@ -204,6 +204,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 	case *ast.Identifier:
 		symbol, ok := c.symbolTable.Resolve(node.Value)
+		// 가상 머신에서는 바이트 코드를 넘기기 전에 에러를 던질 수 있다.
 		if !ok {
 			return fmt.Errorf("undefined variable %s", node.Value)
 		}
@@ -321,6 +322,7 @@ func (c *Compiler) changedOperand(opPos int, operand int) {
 	c.replaceInstruction(opPos, newInstruction)
 }
 
+// REPL에서 전역 상태가 유지되도록
 func NewWithStates(s *SymbolTable, constants []object.Object) *Compiler {
 	compiler := New()
 	compiler.symbolTable = s
