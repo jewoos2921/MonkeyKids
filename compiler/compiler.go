@@ -62,6 +62,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpPop)
 
 	case *ast.InfixExpression:
+		// < 연산자를 처리할 때 , 피연산자의 순서를 변경하기 원해서
+		// if node.Operator == "<"를 가장 먼저 배치
 		// '컴파일 타임'에 비교연산 < 을 비교연산 > 로 바꾼다.
 		if node.Operator == "<" {
 			err := c.Compile(node.Right)

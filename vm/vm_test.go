@@ -59,6 +59,7 @@ func runVmTests(t *testing.T, tests []vmTestCase) {
 		if err != nil {
 			t.Fatalf("vm error: %s", err)
 		}
+		// OpPop이 정확히 처리됬는지 확인
 		stackElem := vm.LastPoppedStackElem()
 
 		testExpectedObject(t, tt.expected, stackElem)

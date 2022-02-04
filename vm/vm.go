@@ -18,6 +18,7 @@ const GlobalsSize = 65536
 const StackSize = 2048
 
 // true 는 언제나 true, false는 언제나 false 그래서 전역 변수로 정의 (성능면에서)
+// 인덱스 범위 초과로 패닉 발생을 방지
 var True = &object.Boolean{Value: true}
 var False = &object.Boolean{Value: false}
 
