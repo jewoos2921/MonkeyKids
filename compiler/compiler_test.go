@@ -143,15 +143,27 @@ func testConstants(t *testing.T,
 
 	for i, constant := range expected {
 		switch constant := constant.(type) {
+
 		case int:
 			err := testIntegerObject(int64(constant), actual[i])
 			if err != nil {
 				return fmt.Errorf("constant %d - testIntegerObject failed: %s", i, err)
 			}
+
 		case string:
 			err := testStringObject(constant, actual[i])
 			if err != nil {
 				return fmt.Errorf("constant %d - testStringObject failed: %s", i, err)
+			}
+
+		case []code.Instructions:
+			fn, ok := actual[i].(*object.CompiledFunction)
+			if !ok {
+				return fmt.Errorf("constant %d - not a function: %T", i, actual[i])
+			}
+			err := testInstructions(constant, fn.Instructions)
+			if err != nil {
+				return fmt.Errorf("constant %d - testInstructions failed: %s", i, err)
 			}
 		}
 	}
@@ -535,6 +547,144 @@ func TestIndexExpression(t *testing.T) {
 				code.Make(code.OpPop),
 			},
 		},
+	}
+	runCompilerTests(t, tests)
+}
+
+/*
+object.CompiledFunction: 컴파일된 함수에 포함된 명령어를 담을 구조체. 컴파일러에서는 이 구조체를 상수 OpConstant 피연산자를 통해 상수로 가상머신을 넘긴다.
+code.OpCall: 가상머신 스택의 가장 위에 있는 *object.CompiledFunction을 실행
+code.OpReturnValue: 가상 머신이 스택의 가장 위에 있는 값을 호출문맥으로 반환하게 만들며, 호출 문맥에서 실행을 재개
+code.OpReturn: code.OpReturnValuer와 비슷, 명시적 반환값 대신 vm.Null을 반환
+*/
+// 함수 리터럴 컴파일 하기
+func TestFunctions(t *testing.T) {
+	tests := []compilerTestCase{
+		{input: `fn() { return 5 + 10 }`,
+			expectedConstants: []interface{}{
+				5, 10,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0),
+					code.Make(code.OpConstant, 1),
+					code.Make(code.OpAdd),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
+		},
+		{input: `fn() { 1; 2 }`,
+			expectedConstants: []interface{}{
+				1, 2,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0),
+					code.Make(code.OpPop),
+					code.Make(code.OpConstant, 1),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
+func TestCompilerScopes(t *testing.T) {
+	compiler := New()
+	if compiler.scopeIndex != 0 {
+		t.Errorf("scopeIndex wrong. got=%d, want=%d", compiler.scopeIndex, 0)
+	}
+	compiler.emit(code.OpMul)
+
+	compiler.enterScope()
+	if compiler.scopeIndex != 1 {
+		t.Errorf("scopeIndex wrong. got=%d, want=%d", compiler.scopeIndex, 1)
+	}
+
+	compiler.emit(code.OpSub)
+	if len(compiler.scopes[compiler.scopeIndex].instructions) != 1 {
+		t.Errorf("instructions length wrong. got=%d", len(compiler.scopes[compiler.scopeIndex].instructions))
+	}
+
+	last := compiler.scopes[compiler.scopeIndex].lastInstruction
+	if last.Opcode != code.OpSub {
+		t.Errorf("lastInstruction.Opcode wrong. got=%d, want=%d", last.Opcode, code.OpSub)
+	}
+
+	compiler.leaveScope()
+	if compiler.scopeIndex != 0 {
+		t.Errorf("scopeIndex wrong. got=%d, want=%d", compiler.scopeIndex, 0)
+	}
+
+	compiler.emit(code.OpAdd)
+
+	if len(compiler.scopes[compiler.scopeIndex].instructions) != 2 {
+		t.Errorf("instructions length wrong. got=%d", len(compiler.scopes[compiler.scopeIndex].instructions))
+	}
+
+	last = compiler.scopes[compiler.scopeIndex].lastInstruction
+	if last.Opcode != code.OpAdd {
+		t.Errorf("lastInstruction.Opcode wrong. got=%d, want=%d", last.Opcode, code.OpAdd)
+	}
+
+	previous := compiler.scopes[compiler.scopeIndex].previousInstruction
+	if previous.Opcode != code.OpMul {
+		t.Errorf("previousInstruction.Opcode wrong. got=%d, want=%d", previous.Opcode, code.OpMul)
+	}
+
+}
+
+// 컴파일러가 함수의 빈 몸체를 OpReturn로 변환 하도록
+func TestFunctionWithoutReturnValue(t *testing.T) {
+	tests := []compilerTestCase{
+		{input: `fn() { }`,
+			expectedConstants: []interface{}{
+				[]code.Instructions{
+					code.Make(code.OpReturn),
+				},
+			}, expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			}},
+	}
+	runCompilerTests(t, tests)
+}
+
+// OpCall 명령어를 가상 머신이 처리할 때 함수의 명령어를 실행하고,
+// 명령어 실행을 모두 끝내면 함수를 스택에서 꺼내고, 함수를 반환값으로 대체한다.
+func TestFunctionCalls(t *testing.T) {
+	tests := []compilerTestCase{
+		{input: `fn() { 24 }()`,
+			expectedConstants: []interface{}{
+				24,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0), // 정수리터럴 24
+					code.Make(code.OpReturnValue),
+				},
+			}, expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1), // 캄파일 된 함수
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+			}},
+		{input: `let noArg = fn() { 24 }; noArg();`,
+			expectedConstants: []interface{}{
+				24,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0), // 정수리터럴 24
+					code.Make(code.OpReturnValue),
+				},
+			}, expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1), // 캄파일 된 함수
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+			}},
 	}
 	runCompilerTests(t, tests)
 }

@@ -79,6 +79,18 @@ const (
 	// 인덱스가 달릴 객체
 	// 인덱스로서 사용할 객체
 	OpIndex
+	// 함수 호출에 사용할 명령코드
+	// 먼저 호출하고 싶은 함수를 스택에서 가져온다.
+	// 그리고 OpCall를 배출한다.
+	// 그러면 가상머신은 OpCall을 보고 스택 가장 위에 함수를 가져와서 실행
+	// 호출할 함수를 스택에 올려두는 단계
+	// OpCall 명령어를 배출하는 단계
+	OpCall
+	// 가상머신이 함수에서 원래 위치로 반환
+	// 1. 어떤 결과를 암묵적이든 명시적이든 반환하는 형태
+	// 2. 함수 호출 결과로 아무것도 남기지 않는 형태
+	OpReturnValue // 가상 머신에게 스택 가장 위에 있는 값을 반환하라고 말함
+	OpReturn      // 현재 함수에서 빠져나오라고 말함, 반환값이 없음
 )
 
 type Definition struct {
@@ -106,9 +118,12 @@ var definitions = map[Opcode]*Definition{
 	OpGetGlobal:     {"OpGetGlobal", []int{2}},
 	OpSetGlobal:     {"OpSetGlobal", []int{2}},
 	// 배열의 크기는 65535로 제한
-	OpArray: {"OpArray", []int{2}},
-	OpHash:  {"OpHash", []int{2}},
-	OpIndex: {"OpIndex", []int{}},
+	OpArray:       {"OpArray", []int{2}},
+	OpHash:        {"OpHash", []int{2}},
+	OpIndex:       {"OpIndex", []int{}},
+	OpCall:        {"OpCall", []int{}},
+	OpReturnValue: {"OpReturnValue", []int{}},
+	OpReturn:      {"OpReturn", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {

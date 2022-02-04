@@ -22,11 +22,10 @@ import (
 // 컴파일러를 고쳐서 마지막으로 배출한 명령어 둘을 추적해야한다.
 // 두명령어를 갖는 명령코드와 배출된 위치를 추적할 수 있어야 한다.
 type Compiler struct {
-	instructions        code.Instructions
-	constants           []object.Object
-	lastInstruction     EmittedInstruction // 가장 마지막으로 배출한 명려어
-	previousInstruction EmittedInstruction // lastInstruction 직전에 배출된 명령어
-	symbolTable         *SymbolTable
+	constants   []object.Object
+	symbolTable *SymbolTable
+	scopes      []CompilationScope
+	scopeIndex  int
 }
 
 /*
@@ -38,9 +37,17 @@ type Compiler struct {
 상수 풀에 있는 상수를 참조하는 OpConstant명령어를 배출한다.
 */
 func New() *Compiler {
-	return &Compiler{instructions: code.Instructions{}, constants: []object.Object{},
-		lastInstruction: EmittedInstruction{}, previousInstruction: EmittedInstruction{},
-		symbolTable: NewSymbolTable()}
+	mainScope := CompilationScope{
+		instructions:        code.Instructions{},
+		lastInstruction:     EmittedInstruction{},
+		previousInstruction: EmittedInstruction{},
+	}
+	return &Compiler{
+		constants:   []object.Object{},
+		symbolTable: NewSymbolTable(),
+		scopes:      []CompilationScope{mainScope},
+		scopeIndex:  0,
+	}
 }
 
 func (c *Compiler) Compile(node ast.Node) error {
@@ -157,7 +164,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 
-		if c.lastInstructionIsPop() {
+		if c.lastInstructionIs(code.OpPop) {
 			c.removeLastPop()
 		}
 
@@ -166,7 +173,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		// OpJump 명령어에 쓰레기값 9999를 넣어서 배출
 		jumpPos := c.emit(code.OpJump, 9999)
 
-		afterConsequencePos := len(c.instructions) // 다음에 배출할 명령어가 갖는 오프셋 값을 계산한다.
+		afterConsequencePos := len(c.currentInstructions()) // 다음에 배출할 명령어가 갖는 오프셋 값을 계산한다.
 		c.changedOperand(jumpNotTruthyPos, afterConsequencePos)
 
 		if node.Alternative == nil {
@@ -176,11 +183,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 			if err != nil {
 				return err
 			}
-			if c.lastInstructionIsPop() {
+			if c.lastInstructionIs(code.OpPop) {
 				c.removeLastPop()
 			}
 		}
-		afterAlternativePos := len(c.instructions)
+		afterAlternativePos := len(c.currentInstructions())
 		c.changedOperand(jumpPos, afterAlternativePos)
 
 	case *ast.BlockStatement:
@@ -259,13 +266,55 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		c.emit(code.OpIndex)
+
+	case *ast.FunctionLiteral:
+		// 함수를 컴파일할 때 배출될 명령어가 저장되는 위치를 바꾸는 것
+		c.enterScope()
+
+		err := c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+
+		if c.lastInstructionIs(code.OpPop) {
+			c.replaceLastPopWithReturn()
+		}
+
+		if !c.lastInstructionIs(code.OpReturnValue) {
+			c.emit(code.OpReturn)
+		}
+
+		instructions := c.leaveScope()
+
+		compiledFn := &object.CompiledFunction{Instructions: instructions}
+		c.emit(code.OpConstant, c.addConstant(compiledFn))
+
+	case *ast.ReturnStatement:
+		// 반환값 자체를 컴파일
+		err := c.Compile(node.ReturnValue)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpReturnValue)
+
+	case *ast.CallExpression:
+		// 가상 머신이 사용할 데이터만 변화시키면 된다.
+		// 명령어와 명령어 포인터를 변경해야 한다.
+		// 만약 가상 머신 실행 중에 명령어와 명령어 포인터를 변경할 수 있다면, 함수를 실행할 수 있다.
+		err := c.Compile(node.Function)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpCall)
+
 	}
 
 	return nil
 }
 
 func (c *Compiler) Bytecode() *Bytecode {
-	return &Bytecode{Instructions: c.instructions, Constants: c.constants}
+	return &Bytecode{Instructions: c.currentInstructions(),
+		Constants: c.constants}
 }
 
 type Bytecode struct {
@@ -291,8 +340,9 @@ func (c *Compiler) addConstant(obj object.Object) int {
 }
 
 func (c *Compiler) addInstruction(ins []byte) int {
-	posNewInstruction := len(c.instructions)
-	c.instructions = append(c.instructions, ins...)
+	posNewInstruction := len(c.currentInstructions())
+	updatedInstructions := append(c.currentInstructions(), ins...)
+	c.scopes[c.scopeIndex].instructions = updatedInstructions
 	return posNewInstruction
 }
 
@@ -303,28 +353,30 @@ type EmittedInstruction struct {
 
 // 마지막 명령어가 가진 명령 코드를 타입 안정성(명령코드를 byte로 변환하거나, byte를 명령코드로 변환할 필요가 없다는 뜻)있게 검사할 수 있다.
 func (c *Compiler) setLastInstruction(op code.Opcode, pos int) {
-	previous := c.lastInstruction
+	previous := c.scopes[c.scopeIndex].lastInstruction
 	last := EmittedInstruction{Opcode: op, Position: pos}
 
-	c.previousInstruction = previous
-	c.lastInstruction = last
-}
-
-// 마지막 명령코드가 OpPop 인지 검사한다.
-func (c *Compiler) lastInstructionIsPop() bool {
-	return c.lastInstruction.Opcode == code.OpPop
+	c.scopes[c.scopeIndex].previousInstruction = previous
+	c.scopes[c.scopeIndex].lastInstruction = last
 }
 
 // 	c.instructions에서 마지막 명령어를 잘라내고 	c.instructions을 previousInstruction로 바꾼다.
 func (c *Compiler) removeLastPop() {
-	c.instructions = c.instructions[:c.lastInstruction.Position]
-	c.lastInstruction = c.previousInstruction
+	last := c.scopes[c.scopeIndex].lastInstruction
+	previous := c.scopes[c.scopeIndex].previousInstruction
+
+	old := c.currentInstructions()
+	new := old[:last.Position]
+
+	c.scopes[c.scopeIndex].instructions = new
+	c.scopes[c.scopeIndex].lastInstruction = previous
 }
 
 // instructions 슬라이스의 임의의 오프셋 값에 위치한 명령어를 바꿀때 사용
 func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
+	ins := c.currentInstructions()
 	for i := 0; i < len(newInstruction); i++ {
-		c.instructions[pos+i] = newInstruction[i]
+		ins[pos+i] = newInstruction[i]
 	}
 }
 
@@ -332,10 +384,14 @@ func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
 // 다시 바꾸어 기존 명령어를 새로운 명령어로 갈아치운다
 // 이때 명령어 타입이 갖고 명령어 길이가 변하지 않는 명령어만 바꿀수 있다.
 func (c *Compiler) changedOperand(opPos int, operand int) {
-	op := code.Opcode(c.instructions[opPos])
+	op := code.Opcode(c.currentInstructions()[opPos])
 	newInstruction := code.Make(op, operand)
 
 	c.replaceInstruction(opPos, newInstruction)
+}
+
+func (c *Compiler) currentInstructions() code.Instructions {
+	return c.scopes[c.scopeIndex].instructions
 }
 
 // REPL에서 전역 상태가 유지되도록
@@ -344,4 +400,47 @@ func NewWithStates(s *SymbolTable, constants []object.Object) *Compiler {
 	compiler.symbolTable = s
 	compiler.constants = constants
 	return compiler
+}
+
+// 스포크 추가
+// 슬라이스 하나와 두개의 개별 필드 lastInstruction, previousInstruction을 이용해 배출한 명령어를 추적하는 대신,
+// 이셋을 컴파일 스코프로 엮고 컴파일 스코프 스택으로 사용한다는 의미
+type CompilationScope struct {
+	instructions        code.Instructions
+	lastInstruction     EmittedInstruction
+	previousInstruction EmittedInstruction
+}
+
+func (c *Compiler) enterScope() {
+	scope := CompilationScope{
+		instructions:        code.Instructions{},
+		lastInstruction:     EmittedInstruction{},
+		previousInstruction: EmittedInstruction{},
+	}
+	c.scopes = append(c.scopes, scope)
+	c.scopeIndex++
+}
+
+func (c *Compiler) leaveScope() code.Instructions {
+	instructions := c.currentInstructions()
+
+	c.scopes = c.scopes[:len(c.scopes)-1]
+	c.scopeIndex--
+
+	return instructions
+}
+
+// 마지막 명령코드가 OpPop 인지 검사한다.
+func (c *Compiler) lastInstructionIs(op code.Opcode) bool {
+	if len(c.currentInstructions()) == 0 {
+		return false
+	}
+	return c.scopes[c.scopeIndex].lastInstruction.Opcode == op
+}
+
+func (c *Compiler) replaceLastPopWithReturn() {
+	lastPos := c.scopes[c.scopeIndex].lastInstruction.Position
+	c.replaceInstruction(lastPos, code.Make(code.OpReturnValue))
+
+	c.scopes[c.scopeIndex].lastInstruction.Opcode = code.OpReturnValue
 }

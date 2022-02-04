@@ -2,6 +2,7 @@ package object
 
 import (
 	"MonkeyKids/ast"
+	"MonkeyKids/code"
 	"bytes"
 	"fmt"
 	"hash/fnv"
@@ -24,6 +25,10 @@ const (
 	BUILTIN_OBJ      = "BUILTIN"
 	ARRAY_OBJ        = "ARRAY"
 	HASH_OBJ         = "HASH"
+	// 함수 표현하기
+	// 만든 명령어를 어디에 저장하며, 어떻게 가상 머신에 넘기는지,
+	// 함수 리터럴
+	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION_OBJ"
 )
 
 // 모든값을 Object 인터페이스를 만족하는 구조체로 감쌀 것이다.
@@ -215,4 +220,13 @@ func (h *Hash) Inspect() string {
 
 type Hashable interface {
 	HashKey() HashKey
+}
+
+type CompiledFunction struct {
+	Instructions code.Instructions
+}
+
+func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }
+func (cf *CompiledFunction) Inspect() string {
+	return fmt.Sprintf("compiledFunction[%p]", cf)
 }
