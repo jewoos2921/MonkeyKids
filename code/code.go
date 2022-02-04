@@ -127,10 +127,18 @@ var definitions = map[Opcode]*Definition{
 	OpGetGlobal:     {"OpGetGlobal", []int{2}},
 	OpSetGlobal:     {"OpSetGlobal", []int{2}},
 	// 배열의 크기는 65535로 제한
-	OpArray:       {"OpArray", []int{2}},
-	OpHash:        {"OpHash", []int{2}},
-	OpIndex:       {"OpIndex", []int{}},
-	OpCall:        {"OpCall", []int{}},
+	OpArray: {"OpArray", []int{2}},
+	OpHash:  {"OpHash", []int{2}},
+	OpIndex: {"OpIndex", []int{}},
+	// 인수가 있는 함수 호출 컴파일 하기
+	// 함수 호출 인수는 지역 바인딩을 만드는 특수한 케이스
+	// 지역 바인딩은 사용자가 let 문을 사용하며 명시적으로 생성, 그결과를 OpSetLocal 배출
+	// 인수는 암묵적으로 이름에 바인딩
+	// 호출할 함수를 스택에 넣는다.
+	//호출 인수를 스택에 넣는다.
+	// OpCall 명령어를 배출
+	//
+	OpCall:        {"OpCall", []int{1}},
 	OpReturnValue: {"OpReturnValue", []int{}},
 	OpReturn:      {"OpReturn", []int{}},
 	OpGetLocal:    {"OpGetLocal", []int{1}},

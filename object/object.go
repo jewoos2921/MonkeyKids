@@ -223,8 +223,9 @@ type Hashable interface {
 }
 
 type CompiledFunction struct {
-	Instructions code.Instructions
-	NumLocals    int // 가상머신에게 이 함수 안에서 정의될 지역 변수가 몇 개인지 알려눚다.
+	Instructions  code.Instructions
+	NumLocals     int // 가상머신에게 이 함수 안에서 정의될 지역 변수가 몇 개인지 알려눚다.
+	NumParameters int // 현재 처리하고 있는 함수 리터럴이 갖는 파라미터 개수를 넣는다.
 }
 
 func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }

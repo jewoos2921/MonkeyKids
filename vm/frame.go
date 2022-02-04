@@ -16,6 +16,8 @@ type Frame struct {
 	basePointer int                      // 현재의 호출프레임 스택 최하단을 가리키는 포인터
 }
 
+// basePointer: 재시작 버튼같이 사용하기 위해서  ,지역 바인딩을 참조하는데 사용하기 위해서
+
 func NewFrame(fn *object.CompiledFunction, basePointer int) *Frame {
 	return &Frame{
 		fn:          fn,

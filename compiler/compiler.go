@@ -278,7 +278,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.FunctionLiteral:
 		// 함수를 컴파일할 때 배출될 명령어가 저장되는 위치를 바꾸는 것
 		c.enterScope()
-
+		// 새 스코프에 진입하고 나서 함수 몸체를 컴파일 하기전에 함수슽코프안에서 각각의파라미터를 정의한다.
+		// 심벌테이블이 새로운 참조값을 환워느 함수 몸체를 컴파일할 때 참조값을 지역바인딩처럼 다룰수 있게 된다.
+		for _, p := range node.Parameters {
+			c.symbolTable.Define(p.Value)
+		}
 		err := c.Compile(node.Body)
 		if err != nil {
 			return err
@@ -295,7 +299,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		numLocals := c.symbolTable.numDefinitions
 		instructions := c.leaveScope()
 
-		compiledFn := &object.CompiledFunction{Instructions: instructions, NumLocals: numLocals}
+		compiledFn := &object.CompiledFunction{Instructions: instructions, NumLocals: numLocals, NumParameters: len(node.Parameters)}
 		c.emit(code.OpConstant, c.addConstant(compiledFn))
 
 	case *ast.ReturnStatement:
@@ -314,7 +318,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
-		c.emit(code.OpCall)
+		for _, a := range node.Arguments {
+			err := c.Compile(a)
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(code.OpCall, len(node.Arguments))
 
 	}
 

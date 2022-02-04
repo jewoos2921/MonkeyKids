@@ -186,16 +186,12 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpCall:
-			// 함수를 호출하기 전에 스택에 지역바인딩을 저장할 빈공간을 할당한다.
-			// 가상머신에서 OpSetLocal, OpGetLocal 명령어를 처리할 수 있게 구현한다.
-			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction)
-			if !ok {
-				return fmt.Errorf("calling non-function")
+			numArgs := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1 // 피연산자 자리에 빈 바이트 하나를 추가한다.
+			err := vm.callFunction(int(numArgs))
+			if err != nil {
+				return err
 			}
-			frame := NewFrame(fn, vm.sp)
-			vm.pushFrame(frame)
-			// NumLocals만큼 스택을 확보
-			vm.sp = frame.basePointer + fn.NumLocals
 
 		case code.OpReturnValue:
 			returnValue := vm.Pop()
@@ -473,4 +469,22 @@ func (vm *VM) pushFrame(f *Frame) {
 func (vm *VM) popFrame() *Frame {
 	vm.framesIndex--
 	return vm.frames[vm.framesIndex]
+}
+
+func (vm *VM) callFunction(numArgs int) error {
+	// 함수를 호출하기 전에 스택에 지역바인딩을 저장할 빈공간을 할당한다.
+	// 가상머신에서 OpSetLocal, OpGetLocal 명령어를 처리할 수 있게 구현한다.
+	fn, ok := vm.stack[vm.sp-1-numArgs].(*object.CompiledFunction)
+	if !ok {
+		return fmt.Errorf("calling non-function")
+	}
+	if numArgs != fn.NumParameters {
+		return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
+	}
+	frame := NewFrame(fn, vm.sp-numArgs)
+	vm.pushFrame(frame)
+
+	vm.sp = frame.basePointer + fn.NumLocals
+
+	return nil
 }
