@@ -288,6 +288,7 @@ func TestConditionals(t *testing.T) {
 		//		code.Make(code.OpPop),
 		//	}},
 		{
+			// 3333은 기준점 역할
 			input:             `if (true) { 10 } else { 20 }; 3333;`,
 			expectedConstants: []interface{}{10, 20, 3333},
 			expectedInstructions: []code.Instructions{

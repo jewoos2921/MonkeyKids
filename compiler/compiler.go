@@ -141,11 +141,18 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		// OpJumpNotTruthy 명령어에 쓰레기값 9999를 넣어서 배출
 		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+
 		// jumpNotTruthyPos 는 명령어를 찾을때 사용할 값이다.
 		// OpPop 명령어가 있는지 검사하고, 있다면 제거하는 작업을 마친 이후를 말한다.
 		// node.Consequence 은 표현식
 		// node.Consequence 에서 마지막 OpPop 명령어만 제거해야 한다.
 		err = c.Compile(node.Consequence)
+		// 백패칭 사용
+		// AST를 한 번만 순회하는 컴파일러르 단일 패스 컴파일러라 부르는데,
+		// 이런 컴파일러에는 백 패칭은 아주 흔히 사용되는 기법이다.
+		// 진보된 컴파일러에서는
+		// 점프 명령어가 뛰어야 할 목적지로 얼마나 뛰어야 할지 실제로 알기전 까지는 비워두고,
+		// AST를 한 번 더 순회하는 다음 패스에서, 얼마나 뛰어야 할지 알아낸 뒤에 값을 채운다.
 		if err != nil {
 			return err
 		}
@@ -304,7 +311,9 @@ func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
 	}
 }
 
-// 피연산자 변경
+// 피연산자 변경만 변경하는 게 아니라 바뀐 피연산자의 명령어를
+// 다시 바꾸어 기존 명령어를 새로운 명령어로 갈아치운다
+// 이때 명령어 타입이 갖고 명령어 길이가 변하지 않는 명령어만 바꿀수 있다.
 func (c *Compiler) changedOperand(opPos int, operand int) {
 	op := code.Opcode(c.instructions[opPos])
 	newInstruction := code.Make(op, operand)
