@@ -12,6 +12,7 @@ package compiler
 type SymbolScope string
 
 const (
+	LocalScope  SymbolScope = "LOCAL"
 	GlobalScope SymbolScope = "GLOBAL" // 스코프를 구분할 필요가 있다.
 )
 
@@ -23,6 +24,7 @@ type Symbol struct {
 }
 
 type SymbolTable struct {
+	Outer          *SymbolTable
 	store          map[string]Symbol
 	numDefinitions int
 }
@@ -35,15 +37,34 @@ func NewSymbolTable() *SymbolTable {
 func (s *SymbolTable) Define(name string) Symbol {
 	symbol := Symbol{
 		Name:  name,
-		Scope: GlobalScope,
-		Index: s.numDefinitions,
+		Index: s.numDefinitions}
+	if s.Outer == nil {
+		symbol.Scope = GlobalScope
+	} else {
+		symbol.Scope = LocalScope
 	}
+
 	s.store[name] = symbol
 	s.numDefinitions++
 	return symbol
 }
 
+// 호출된 SymbolTable에서 심벌을 찾는 일
+// 재귀적으로 outer 심벌 테이블을 계속 타고 올라가도록 만들어야 하며,
+// 계속 타고 올라가다가 심벌을 찾으면 반환하고, 그렇지 않으면 호출한 곳에다 해당 심벌이 정의되지 않았다는 것을 알려줘야 한다.
+// ? 만약 어떤 심벌을 지역 스코프에 정의하고 더 깉은 스코프에서 환원하면 그 심벌은 지역 스코프를 갖게 될 텐데, 바깥쪽 스코프에
+// 정의되어 있는데 지역 스코프라고 정의해도 되는가??
 func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 	obj, ok := s.store[name]
+	if !ok && s.Outer != nil {
+		obj, ok = s.Outer.Resolve(name)
+		return obj, ok
+	}
 	return obj, ok
+}
+
+func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
+	s := NewSymbolTable()
+	s.Outer = outer
+	return s
 }

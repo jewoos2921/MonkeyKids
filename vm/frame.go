@@ -11,14 +11,16 @@ import (
 // 스택 안에 이미 지정된 영역에 존재
 // 반환주소, 햔재 함수 호출에 사용된 인수와 지역 변수가 저장
 type Frame struct {
-	fn *object.CompiledFunction // 프레임이 참조할 컴파일된 함수를 가리키는 포인터
-	ip int                      // 현재 프레임에서 현재 함수가 사용할 명령어 포인터
+	fn          *object.CompiledFunction // 프레임이 참조할 컴파일된 함수를 가리키는 포인터
+	ip          int                      // 현재 프레임에서 현재 함수가 사용할 명령어 포인터
+	basePointer int                      // 현재의 호출프레임 스택 최하단을 가리키는 포인터
 }
 
-func NewFrame(fn *object.CompiledFunction) *Frame {
+func NewFrame(fn *object.CompiledFunction, basePointer int) *Frame {
 	return &Frame{
-		fn: fn,
-		ip: -1,
+		fn:          fn,
+		ip:          -1,
+		basePointer: basePointer,
 	}
 }
 

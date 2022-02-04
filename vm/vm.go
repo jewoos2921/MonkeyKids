@@ -36,7 +36,7 @@ type VM struct {
 
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
-	mainFrame := NewFrame(mainFn)
+	mainFrame := NewFrame(mainFn, 0)
 
 	frames := make([]*Frame, MaxFrames)
 	frames[0] = mainFrame
@@ -186,28 +186,51 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpCall:
+			// 함수를 호출하기 전에 스택에 지역바인딩을 저장할 빈공간을 할당한다.
+			// 가상머신에서 OpSetLocal, OpGetLocal 명령어를 처리할 수 있게 구현한다.
 			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction)
 			if !ok {
 				return fmt.Errorf("calling non-function")
 			}
-			frame := NewFrame(fn)
+			frame := NewFrame(fn, vm.sp)
 			vm.pushFrame(frame)
+			// NumLocals만큼 스택을 확보
+			vm.sp = frame.basePointer + fn.NumLocals
 
 		case code.OpReturnValue:
 			returnValue := vm.Pop()
 
-			vm.popFrame()
-			vm.Pop()
+			frame := vm.popFrame()
+			vm.sp = frame.basePointer - 1
 
 			err := vm.Push(returnValue)
 			if err != nil {
 				return err
 			}
+
 		case code.OpReturn:
-			vm.popFrame()
-			vm.Pop()
+			frame := vm.popFrame()
+			vm.sp = frame.basePointer - 1 // 1을 빼는 이유는 최적화때문에
 
 			err := vm.Push(Null)
+			if err != nil {
+				return err
+			}
+
+		case code.OpSetLocal:
+			localIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			frame := vm.currentFrame()
+			vm.stack[frame.basePointer+int(localIndex)] = vm.Pop()
+
+		case code.OpGetLocal:
+			localIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			frame := vm.currentFrame()
+
+			err := vm.Push(vm.stack[frame.basePointer+int(localIndex)])
 			if err != nil {
 				return err
 			}

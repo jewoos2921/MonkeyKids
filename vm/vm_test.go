@@ -330,6 +330,24 @@ func TestFunctionsWithoutReturnStatement(t *testing.T) {
 func TestFirstClassFunctions(t *testing.T) {
 	tests := []vmTestCase{
 		{input: `let returnsOne = fn() {1;}; let returnsTwo =fn { returnsOne; } ; returnsTwo()();`, expected: 1},
+		{input: `let returnsOneReturner = fn() { returnsOne = fn(){1;}; returnsOne } ; returnsOneReturner()();`, expected: 1},
+	}
+	runVmTests(t, tests)
+}
+
+/* 고유 인덱스는 어떤 자료구조에서 사용될까?, 그리고 이 자료구조는 어디에 위치해야 할까?
+	vm에 정의된 globals슬라이스는 사용할 수 없다. -> 전역 바인딩을 저장 하기 위한 공간
+1) 동적으로 지역 바인딩을 할당하고, 지역 바인딩을 자료구조에 지역바인딩을 저장
+2) 이미 만들어둔 자료구조를 재활용하는 것
+*/
+func TestCallingFunctionsWithBinding(t *testing.T) {
+	tests := []vmTestCase{
+		{input: `let one = fn() { let one = 1; one }; one();`, expected: 1},
+		{input: `let oneAndTwo = fn() { let one = 1; let two = 2; one + two; }; oneAndTwo();`, expected: 3},
+		{input: `let oneAndTwo = fn() { let one = 1; let two = 2; one + two; }; let threeAndFour = fn() { let three = 3; let four = 4; three + four; } oneAndTwo() + threeAndFour();`, expected: 10},
+		{input: `let firstFoobar = fn() { let foobar = 50; one }; let secondFoobar = fn() { let foobar = 100; one }; firstFoobar()+secondFoobar();`, expected: 150},
+		{input: `let globalSeed = 50; let minusOne = fn(){let num=1; globalSeed-num;} let minusTwo = fn(){let num=2; globalSeed-num;} minusTwo()+minusOne();`,
+			expected: 97},
 	}
 	runVmTests(t, tests)
 }
