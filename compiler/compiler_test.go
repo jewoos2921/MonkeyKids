@@ -140,6 +140,7 @@ func testConstants(t *testing.T,
 	if len(expected) != len(actual) {
 		return fmt.Errorf("wrong number of constants. got=%d, want=%d", len(actual), len(expected))
 	}
+
 	for i, constant := range expected {
 		switch constant := constant.(type) {
 		case int:
@@ -494,6 +495,43 @@ func TestHashLiteral(t *testing.T) {
 				code.Make(code.OpConstant, 5),
 				code.Make(code.OpMul),
 				code.Make(code.OpHash, 4),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
+// 컴파일러는 인덱스가 달릴 대상은 무엇이고, 인덱스는 무엇인지, 전체 연산은 유효한지 등에 관심을 두지 않는다.
+// 이는 가상 머신이 해야 할일
+func TestIndexExpression(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             "[1,2,3][1+1]",
+			expectedConstants: []interface{}{1, 2, 3, 1, 1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpArray, 3),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpConstant, 4),
+				code.Make(code.OpAdd),
+				code.Make(code.OpIndex),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "{1: 2}[2-1]",
+			expectedConstants: []interface{}{1, 2, 2, 1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpHash, 2),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpSub),
+				code.Make(code.OpIndex),
 				code.Make(code.OpPop),
 			},
 		},

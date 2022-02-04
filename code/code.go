@@ -70,9 +70,15 @@ const (
 	OpGetGlobal
 	OpSetGlobal
 	// 문자열
+	// 배열은 복합 데이터타입
+	// 컴파일타임에 배열을 만들어 상수 풀에 넣은 후 가상머신에 전달하는게 아니라,
+	// 가상 머신이 직접 배열을 만들도록 어떤 정보를 주어야 한다.
 	OpArray
 	// 해시
 	OpHash
+	// 인덱스가 달릴 객체
+	// 인덱스로서 사용할 객체
+	OpIndex
 )
 
 type Definition struct {
@@ -99,8 +105,10 @@ var definitions = map[Opcode]*Definition{
 	OpNull:          {"OpNull", []int{}},
 	OpGetGlobal:     {"OpGetGlobal", []int{2}},
 	OpSetGlobal:     {"OpSetGlobal", []int{2}},
-	OpArray:         {"OpArray", []int{2}},
-	OpHash:          {"OpHash", []int{2}},
+	// 배열의 크기는 65535로 제한
+	OpArray: {"OpArray", []int{2}},
+	OpHash:  {"OpHash", []int{2}},
+	OpIndex: {"OpIndex", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
