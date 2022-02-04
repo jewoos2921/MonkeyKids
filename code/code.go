@@ -91,6 +91,15 @@ const (
 	// 2. 함수 호출 결과로 아무것도 남기지 않는 형태
 	OpReturnValue // 가상 머신에게 스택 가장 위에 있는 값을 반환하라고 말함
 	OpReturn      // 현재 함수에서 빠져나오라고 말함, 반환값이 없음
+
+	// 지역 바인딩
+	// 함수 스코프 안에서만 보이고 접근가능해야 한다.
+	// 1) 명령코드를 새로 정의해서 가상 머신이 지역 바인딩을 만들어 내고 가져올 수 있게 만들어야 한다.
+	// 2) 컴파일러를 확장해 새로 정의한 명령코드를 올바르게 배출할 수 있어야 한다.
+	// 3) 가장 머신에 새로 추가한 명령어를 구현하고, 지역바인딩을 구현하면 된다.
+	// 전역 바인딩에 영향을 미쳐서는 안됨
+	OpGetLocal
+	OpSetLocal
 )
 
 type Definition struct {
@@ -124,6 +133,8 @@ var definitions = map[Opcode]*Definition{
 	OpCall:        {"OpCall", []int{}},
 	OpReturnValue: {"OpReturnValue", []int{}},
 	OpReturn:      {"OpReturn", []int{}},
+	OpGetLocal:    {"OpGetLocal", []int{1}},
+	OpSetLocal:    {"OpSetLocal", []int{1}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -155,6 +166,10 @@ func Make(op Opcode, operands ...int) []byte {
 		switch width {
 		case 2:
 			binary.BigEndian.PutUint16(instruction[offset:], uint16(o))
+
+		case 1:
+			// 1바이트를 처리
+			instruction[offset] = byte(o)
 		}
 		offset += width
 	}
@@ -170,11 +185,18 @@ func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
 		switch width {
 		case 2:
 			operands[i] = int(ReadUint16(ins[offset:]))
+		case 1:
+			operands[i] = int(ReadUint8(ins[offset:]))
 		}
 		offset += width
 	}
 	return operands, offset
 }
+
+func ReadUint8(ins Instructions) uint8 {
+	return uint8(ins[0])
+}
+
 func ReadUint16(ins Instructions) uint16 {
 	return binary.BigEndian.Uint16(ins)
 }

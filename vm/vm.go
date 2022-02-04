@@ -16,6 +16,7 @@ import (
 
 const GlobalsSize = 65536
 const StackSize = 2048
+const MaxFrames = 1024
 
 // true 는 언제나 true, false는 언제나 false 그래서 전역 변수로 정의 (성능면에서)
 // 인덱스 범위 초과로 패닉 발생을 방지
@@ -25,34 +26,50 @@ var False = &object.Boolean{Value: false}
 var Null = &object.Null{}
 
 type VM struct {
-	constants    []object.Object
-	instructions code.Instructions
-	stack        []object.Object // stack은 요소의 수를 나타내는 StackSize만큼의 크기로 미리 할당
-	sp           int             // 언제나 다음값을 가리킴. 다라서 스택 최상단은 stack[sp-1],  sp는 언제나 스텍에서 비어있는 다음 슬롯을 가리킨다.
-	globals      []object.Object // 가상머신에서 전역 바인딩 구하기
+	constants   []object.Object
+	stack       []object.Object // stack은 요소의 수를 나타내는 StackSize만큼의 크기로 미리 할당
+	sp          int             // 언제나 다음값을 가리킴. 다라서 스택 최상단은 stack[sp-1],  sp는 언제나 스텍에서 비어있는 다음 슬롯을 가리킨다.
+	globals     []object.Object // 가상머신에서 전역 바인딩 구하기
+	frames      []*Frame
+	framesIndex int
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
+	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
+	mainFrame := NewFrame(mainFn)
+
+	frames := make([]*Frame, MaxFrames)
+	frames[0] = mainFrame
+
 	return &VM{
-		instructions: bytecode.Instructions,
-		constants:    bytecode.Constants,
-		stack:        make([]object.Object, StackSize),
-		sp:           0,
-		globals:      make([]object.Object, GlobalsSize),
+		constants:   bytecode.Constants,
+		stack:       make([]object.Object, StackSize),
+		sp:          0,
+		globals:     make([]object.Object, GlobalsSize),
+		frames:      frames,
+		framesIndex: 1,
 	}
 }
 
 // 인출-복호화-실행 주기가 구현
 func (vm *VM) Run() error {
-	for ip := 0; ip < len(vm.instructions); ip++ {
-		op := code.Opcode(vm.instructions[ip])
+	var ip int
+	var ins code.Instructions
+	var op code.Opcode
+
+	for vm.currentFrame().ip < len(vm.currentFrame().Instructions())-1 {
+		vm.currentFrame().ip++
+
+		ip = vm.currentFrame().ip
+		ins = vm.currentFrame().Instructions()
+		op = code.Opcode(ins[ip])
 
 		// 복호화: case를 추가해서 명령어가 가진 피연산자를 복호화한다
 		switch op {
 		case code.OpConstant:
 			// ReadUint16를 ReadOperands대신 쓰는 이유는 속도 때문에
-			constIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			constIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 			err := vm.Push(vm.constants[constIndex])
 			if err != nil {
 				return err
@@ -98,16 +115,16 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpJump:
-			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
-			ip = pos - 1 // 점프에서 도착해야할 목적지
+			pos := int(code.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip = pos - 1 // 점프에서 도착해야할 목적지
 
 		case code.OpJumpNotTruthy:
-			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
-			ip += 2
+			pos := int(code.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
 
 			condition := vm.Pop()
 			if !isTruthy(condition) {
-				ip = pos - 1
+				vm.currentFrame().ip = pos - 1
 			}
 
 			// 조건식은 표현식이면 표현식이라면 어떤 것과도 바꿔 쓸 수 있다. : 어떤 표현식이든 가상 머신에서 Null을 만들 수 있다.
@@ -120,22 +137,22 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpSetGlobal:
-			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			globalIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 
 			vm.globals[globalIndex] = vm.Pop()
 
 		case code.OpGetGlobal:
-			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			globalIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 			err := vm.Push(vm.globals[globalIndex])
 			if err != nil {
 				return err
 			}
 
 		case code.OpArray:
-			numElements := int(code.ReadUint16(vm.instructions[ip+1:]))
-			ip += 2
+			numElements := int(code.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
 
 			array := vm.buildArray(vm.sp-numElements, vm.sp)
 			vm.sp = vm.sp - numElements
@@ -146,8 +163,8 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpHash:
-			numElements := int(code.ReadUint16(vm.instructions[ip+1:]))
-			ip += 2
+			numElements := int(code.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
 
 			hash, err := vm.buildHash(vm.sp-numElements, vm.sp)
 			if err != nil {
@@ -164,6 +181,33 @@ func (vm *VM) Run() error {
 			left := vm.Pop()
 
 			err := vm.executeIndexExpression(left, index)
+			if err != nil {
+				return err
+			}
+
+		case code.OpCall:
+			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction)
+			if !ok {
+				return fmt.Errorf("calling non-function")
+			}
+			frame := NewFrame(fn)
+			vm.pushFrame(frame)
+
+		case code.OpReturnValue:
+			returnValue := vm.Pop()
+
+			vm.popFrame()
+			vm.Pop()
+
+			err := vm.Push(returnValue)
+			if err != nil {
+				return err
+			}
+		case code.OpReturn:
+			vm.popFrame()
+			vm.Pop()
+
+			err := vm.Push(Null)
 			if err != nil {
 				return err
 			}
@@ -395,4 +439,15 @@ func (vm *VM) executeHashIndex(hash object.Object, index object.Object) error {
 		return vm.Push(Null)
 	}
 	return vm.Push(pair.Value)
+}
+func (vm *VM) currentFrame() *Frame {
+	return vm.frames[vm.framesIndex-1]
+}
+func (vm *VM) pushFrame(f *Frame) {
+	vm.frames[vm.framesIndex] = f
+	vm.framesIndex++
+}
+func (vm *VM) popFrame() *Frame {
+	vm.framesIndex--
+	return vm.frames[vm.framesIndex]
 }
