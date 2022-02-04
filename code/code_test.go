@@ -31,7 +31,7 @@ func TestMake(t *testing.T) {
 
 func TestInstructionsString(t *testing.T) {
 	instructions := []Instructions{
-		Make(OpAdd),
+		Make(OpAdd), // 카운터 값
 		Make(OpConstant, 2),
 		Make(OpConstant, 65535),
 	}
@@ -46,6 +46,7 @@ func TestInstructionsString(t *testing.T) {
 			expected, concatted.String())
 	}
 }
+
 func TestReadOperands(t *testing.T) {
 	tests := []struct {
 		op        Opcode
@@ -55,6 +56,7 @@ func TestReadOperands(t *testing.T) {
 		{OpConstant, []int{65535}, 2},
 	}
 	for _, tt := range tests {
+		// 부호화된 명령어를 만들고 명령어의 정의와 명령어에서 피연산자를 포함하는부분 슬라이스를 함께 ReadOperands에 인수로 전달
 		instruction := Make(tt.op, tt.operands...)
 
 		def, err := Lookup(byte(tt.op))
@@ -62,6 +64,8 @@ func TestReadOperands(t *testing.T) {
 			t.Fatalf("definition not found: %q\n", err)
 		}
 
+		// 복호화된 피연산자를 반환, 복호화된 피연산자를 읽을 때
+		// 바이트를 얼마만큼의 크기로 읽어야 하는지 알려준다
 		operandsRead, n := ReadOperands(def, instruction[1:])
 		if n != tt.bytesRead {
 			t.Fatalf("n wrong. want=%q, got=%d", tt.bytesRead, n)

@@ -82,7 +82,7 @@ func TestIntegerArithmetic(t *testing.T) {
 }
 
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
-	t.Helper()
+	t.Helper() // 특정 테스트 함수를 테스트 도움 함수로 인식
 
 	for _, tt := range tests {
 		program := parse(tt.input)
@@ -126,6 +126,7 @@ func testInstructions(expected []code.Instructions,
 	return nil
 }
 
+// compilerTestCase에 정의된 expectedInstructions가 바이트 슬라이스의 슬라이스기 때문에 필요
 func concatInstructions(s []code.Instructions) code.Instructions {
 	out := code.Instructions{}
 	for _, ins := range s {

@@ -41,12 +41,14 @@ type vmTestCase struct {
 4. 컴파일 에러가 있는지 검사한다.
 5. *compiler.Bytecode를 New 함수에 넘긴다.
 */
+// 초기설정을 담당, 각각의 vmTestCase를 실행
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 
 	for _, tt := range tests {
 		program := parse(tt.input)
 
+		// 가상 머신 인스턴스 하나를 반환
 		comp := compiler.New()
 		err := comp.Compile(program)
 		if err != nil {

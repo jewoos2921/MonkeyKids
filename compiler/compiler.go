@@ -29,6 +29,14 @@ type Compiler struct {
 	symbolTable         *SymbolTable
 }
 
+/*
+		최소한의 컴파일러
+전달받은 AST를 순회한다.
+*ast.IntegerLiteral노드를 찾는다.
+*ast.IntegerLiteral을 평가한 다음 object.Integer 객체로 변환한다.
+변환한 객체를 상수 풀에 추가한다.
+상수 풀에 있는 상수를 참조하는 OpConstant명령어를 배출한다.
+*/
 func New() *Compiler {
 	return &Compiler{instructions: code.Instructions{}, constants: []object.Object{},
 		lastInstruction: EmittedInstruction{}, previousInstruction: EmittedInstruction{},
@@ -239,6 +247,8 @@ type Bytecode struct {
 	Constants    []object.Object
 }
 
+// 명령어를 만들고 만든 명령어를 결과에 추가한다.
+// 지금 만들어낸 명령어의 시작 위치를 반환한다.
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	ins := code.Make(op, operands...)
 	pos := c.addInstruction(ins)

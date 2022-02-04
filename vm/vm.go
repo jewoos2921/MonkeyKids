@@ -6,6 +6,7 @@ package vm
 // 바이트 코드는 도메인 특화 언어: 사용자 정의 가상머신에 맞게 설계된 맞춤형 기계어
 // 가상 머신을 만드는 이유: 사용자 정의 바이트코드 형식을 사용하면 도메인에 특화되도록 만들 수 있음
 // 컴파일, 유지보수, 디버깅 유리, 명령어를 더 적게 사용
+// 스택머신을 Monkey 언어에서 사용: 이해가 쉽고 말들기 쉽다.
 import (
 	"MonkeyKids/code"
 	"MonkeyKids/compiler"
@@ -25,8 +26,8 @@ var Null = &object.Null{}
 type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
-	stack        []object.Object // stack은 요소늬 수를 나타내는 StackSize만큼의 크기로 미리 할당
-	sp           int             // 언제나 다음값을 가리킴. 다라서 스택 최상단은 stack[sp-1], sp는 언제나 스텍에서 비어있는 다음 슬롯을 가리킨다.
+	stack        []object.Object // stack은 요소의 수를 나타내는 StackSize만큼의 크기로 미리 할당
+	sp           int             // 언제나 다음값을 가리킴. 다라서 스택 최상단은 stack[sp-1],  sp는 언제나 스텍에서 비어있는 다음 슬롯을 가리킨다.
 	globals      []object.Object // 가상머신에서 전역 바인딩 구하기
 }
 
@@ -45,8 +46,10 @@ func (vm *VM) Run() error {
 	for ip := 0; ip < len(vm.instructions); ip++ {
 		op := code.Opcode(vm.instructions[ip])
 
+		// 복호화: case를 추가해서 명령어가 가진 피연산자를 복호화한다
 		switch op {
 		case code.OpConstant:
+			// ReadUint16를 ReadOperands대신 쓰는 이유는 속도 때문에
 			constIndex := code.ReadUint16(vm.instructions[ip+1:])
 			ip += 2
 			err := vm.Push(vm.constants[constIndex])
