@@ -203,6 +203,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.LetStatement:
+		// 재귀적 클로저
+		symbol := c.symbolTable.Define(node.Name.Value)
 		// let문을 만나면 가장 먼저 연산자= 오른편에 있는 표현식을 컴파일
 		// 이표현식이 만들어내는 Value가 식별자 이름에 바인딩한다.
 		// 여기서 표현식을 컴파일한다는 것는 표현식이 만들어낸 값을 가상 머신이 스택에 넣도록 지시
@@ -210,7 +212,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
-		symbol := c.symbolTable.Define(node.Name.Value)
 		if symbol.Scope == GlobalScope {
 			c.emit(code.OpSetGlobal, symbol.Index)
 		} else {
@@ -284,6 +285,9 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.FunctionLiteral:
 		// 함수를 컴파일할 때 배출될 명령어가 저장되는 위치를 바꾸는 것
 		c.enterScope()
+		if node.Name != "" {
+			c.symbolTable.DefineFunctionName(node.Name)
+		}
 		// 새 스코프에 진입하고 나서 함수 몸체를 컴파일 하기전에 함수슽코프안에서 각각의파라미터를 정의한다.
 		// 심벌테이블이 새로운 참조값을 환워느 함수 몸체를 컴파일할 때 참조값을 지역바인딩처럼 다룰수 있게 된다.
 		for _, p := range node.Parameters {
@@ -301,12 +305,16 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if !c.lastInstructionIs(code.OpReturnValue) {
 			c.emit(code.OpReturn)
 		}
-
+		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
+		// leaveScope를 호출하기전 freeSymbols에 값을 넣는다.
 		instructions := c.leaveScope()
 
-		compiledFn := &object.CompiledFunction{Instructions: instructions, NumLocals: numLocals, NumParameters: len(node.Parameters)}
-		c.emit(code.OpConstant, c.addConstant(compiledFn))
+		compiledFn := &object.CompiledFunction{Instructions: instructions,
+			NumLocals:     numLocals,
+			NumParameters: len(node.Parameters)}
+		fnIndex := c.addConstant(compiledFn)
+		c.emit(code.OpClosure, fnIndex, len(freeSymbols))
 
 	case *ast.ReturnStatement:
 		// 반환값 자체를 컴파일
@@ -482,6 +490,10 @@ func (c *Compiler) loadSymbol(s Symbol) {
 		c.emit(code.OpGetLocal, s.Index)
 	case BuiltinScope:
 		c.emit(code.OpGetBuiltin, s.Index)
+	case FreeScope:
+		c.emit(code.OpGetFree, s.Index)
+	case FunctionScope:
+		c.emit(code.OpCurrentClosure)
 
 	}
 }

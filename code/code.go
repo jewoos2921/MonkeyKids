@@ -102,6 +102,12 @@ const (
 	OpSetLocal
 	// 내장 함수용 스코프
 	OpGetBuiltin
+	OpClosure
+	// 자유 변수 컴파일과 환원
+	OpGetFree
+	// 컴파일러에서 자기 참조를 하는 바인딩을 탐지해서 자유 변수 심벌로 표시하고, OpGetFree 을 배출해서
+	// 표시해둔 자유변수를 스택에 올리는 게 아니라, 새로운 명령코드를 하나 배출하도록 만드는 것
+	OpCurrentClosure
 )
 
 type Definition struct {
@@ -139,13 +145,15 @@ var definitions = map[Opcode]*Definition{
 	// 호출할 함수를 스택에 넣는다.
 	//호출 인수를 스택에 넣는다.
 	// OpCall 명령어를 배출
-	//
-	OpCall:        {"OpCall", []int{1}},
-	OpReturnValue: {"OpReturnValue", []int{}},
-	OpReturn:      {"OpReturn", []int{}},
-	OpGetLocal:    {"OpGetLocal", []int{1}},
-	OpSetLocal:    {"OpSetLocal", []int{1}},
-	OpGetBuiltin:  {"OpGetBuiltin", []int{1}},
+	OpCall:           {"OpCall", []int{1}},
+	OpReturnValue:    {"OpReturnValue", []int{}},
+	OpReturn:         {"OpReturn", []int{}},
+	OpGetLocal:       {"OpGetLocal", []int{1}},
+	OpSetLocal:       {"OpSetLocal", []int{1}},
+	OpGetBuiltin:     {"OpGetBuiltin", []int{1}},
+	OpClosure:        {"OpClosure", []int{2, 1}},
+	OpGetFree:        {"OpGetFree", []int{1}},
+	OpCurrentClosure: {"OpCurrentClosure", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -243,6 +251,9 @@ func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
 		return def.Name
 	case 1:
 		return fmt.Sprintf("%s %d", def.Name, operands[0])
+	case 2:
+		return fmt.Sprintf("%s %d %d", def.Name, operands[0], operands[1])
+
 	}
 	return fmt.Sprintf("ERROR: unhandled operandCount for %s\n", def.Name)
 }

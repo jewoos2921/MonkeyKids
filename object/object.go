@@ -29,6 +29,9 @@ const (
 	// 만든 명령어를 어디에 저장하며, 어떻게 가상 머신에 넘기는지,
 	// 함수 리터럴
 	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION_OBJ"
+
+	// 모든것을 클로저로
+	CLOSURE_OBJ = "CLOSURE"
 )
 
 // 모든값을 Object 인터페이스를 만족하는 구조체로 감쌀 것이다.
@@ -231,4 +234,18 @@ type CompiledFunction struct {
 func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_OBJ }
 func (cf *CompiledFunction) Inspect() string {
 	return fmt.Sprintf("compiledFunction[%p]", cf)
+}
+
+// 가상 머신과 컴파일러로 클로져를 구현하는 것은 자유변수를 어떻게 처리하느냐에 달림
+// 컴파일러는 이런 자유변수 참조를 감지해 자유변수를 스택에 올리는 명령어를 배출해야 한다.
+// 함수를 컴파일할 때 자유번수 참조를 감지하고, 참조된 자유 변수값을 스택에 올리고, 컴파일된 함수와
+// 자유변수값을 병합해 클로져로 만들고 호출될 수 있도록 스택에 넣는다.
+type Closure struct {
+	Fn   *CompiledFunction
+	Free []Object
+}
+
+func (c *Closure) Type() ObjectType { return CLOSURE_OBJ }
+func (c *Closure) Inspect() string {
+	return fmt.Sprintf("Closure[%p]", c)
 }

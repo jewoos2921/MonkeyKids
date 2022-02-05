@@ -11,21 +11,22 @@ import (
 // 스택 안에 이미 지정된 영역에 존재
 // 반환주소, 햔재 함수 호출에 사용된 인수와 지역 변수가 저장
 type Frame struct {
-	fn          *object.CompiledFunction // 프레임이 참조할 컴파일된 함수를 가리키는 포인터
-	ip          int                      // 현재 프레임에서 현재 함수가 사용할 명령어 포인터
-	basePointer int                      // 현재의 호출프레임 스택 최하단을 가리키는 포인터
+	cl          *object.Closure
+	ip          int // 현재 프레임에서 현재 함수가 사용할 명령어 포인터
+	basePointer int // 현재의 호출프레임 스택 최하단을 가리키는 포인터
 }
 
-// basePointer: 재시작 버튼같이 사용하기 위해서  ,지역 바인딩을 참조하는데 사용하기 위해서
-
-func NewFrame(fn *object.CompiledFunction, basePointer int) *Frame {
+// basePointer: 재시작 버튼같이 사용하기 위해서, 지역 바인딩을 참조하는데 사용하기 위해서
+func NewFrame(cl *object.Closure, basePointer int) *Frame {
 	return &Frame{
-		fn:          fn,
+		cl:          cl,
 		ip:          -1,
 		basePointer: basePointer,
 	}
 }
 
+// 프레임은 클로저로만 동작
+// 초기화 할 때 클로저를 넣줘야 하며, 클로저가 담긴 프레임을 스택에 넣어 줘야 한다.
 func (f *Frame) Instructions() code.Instructions {
-	return f.fn.Instructions
+	return f.cl.Fn.Instructions
 }

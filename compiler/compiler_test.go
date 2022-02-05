@@ -571,7 +571,22 @@ func TestFunctions(t *testing.T) {
 				},
 			},
 			expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 2),
+				code.Make(code.OpClosure, 2, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{input: `fn() { 5 + 10 }`,
+			expectedConstants: []interface{}{
+				5, 10,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0),
+					code.Make(code.OpConstant, 1),
+					code.Make(code.OpAdd),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpClosure, 2, 0),
 				code.Make(code.OpPop),
 			},
 		},
@@ -586,7 +601,7 @@ func TestFunctions(t *testing.T) {
 				},
 			},
 			expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 2),
+				code.Make(code.OpClosure, 2, 0),
 				code.Make(code.OpPop),
 			},
 		},
@@ -666,7 +681,7 @@ func TestFunctionWithoutReturnValue(t *testing.T) {
 					code.Make(code.OpReturn),
 				},
 			}, expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 0),
+				code.Make(code.OpClosure, 0, 0),
 				code.Make(code.OpPop),
 			}},
 	}
@@ -685,7 +700,7 @@ func TestFunctionCalls(t *testing.T) {
 					code.Make(code.OpReturnValue),
 				},
 			}, expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 1), // 캄파일 된 함수
+				code.Make(code.OpClosure, 1, 0), // 캄파일 된 함수
 				code.Make(code.OpCall, 0),
 				code.Make(code.OpPop),
 			}},
@@ -697,7 +712,7 @@ func TestFunctionCalls(t *testing.T) {
 					code.Make(code.OpReturnValue),
 				},
 			}, expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 1), // 캄파일 된 함수
+				code.Make(code.OpClosure, 1, 0), // 캄파일 된 함수
 				code.Make(code.OpSetGlobal, 0),
 				code.Make(code.OpGetGlobal, 0),
 				code.Make(code.OpCall, 0),
@@ -710,7 +725,7 @@ func TestFunctionCalls(t *testing.T) {
 				},
 				24,
 			}, expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 0),
+				code.Make(code.OpClosure, 0, 0),
 				code.Make(code.OpSetGlobal, 0),
 				code.Make(code.OpGetGlobal, 0),
 				code.Make(code.OpConstant, 1),
@@ -724,7 +739,7 @@ func TestFunctionCalls(t *testing.T) {
 				},
 				24, 25, 26,
 			}, expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 0),
+				code.Make(code.OpClosure, 0, 0),
 				code.Make(code.OpSetGlobal, 0),
 				code.Make(code.OpGetGlobal, 0),
 				code.Make(code.OpConstant, 1),
@@ -743,7 +758,7 @@ func TestFunctionCalls(t *testing.T) {
 				},
 				24,
 			}, expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 0),
+				code.Make(code.OpClosure, 0, 0),
 				code.Make(code.OpSetGlobal, 0),
 				code.Make(code.OpGetGlobal, 0),
 				code.Make(code.OpConstant, 1),
@@ -762,7 +777,7 @@ func TestFunctionCalls(t *testing.T) {
 				},
 				24, 25, 26,
 			}, expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 0),
+				code.Make(code.OpClosure, 0, 0),
 				code.Make(code.OpSetGlobal, 0),
 				code.Make(code.OpGetGlobal, 0),
 				code.Make(code.OpConstant, 1),
@@ -789,7 +804,7 @@ func TestLetStatementScopes(t *testing.T) {
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
 				code.Make(code.OpSetGlobal, 0),
-				code.Make(code.OpConstant, 1),
+				code.Make(code.OpClosure, 1, 0),
 				code.Make(code.OpPop),
 			},
 		},
@@ -805,7 +820,7 @@ func TestLetStatementScopes(t *testing.T) {
 				},
 			},
 			expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 1),
+				code.Make(code.OpClosure, 1, 0),
 				code.Make(code.OpPop),
 			},
 		},
@@ -825,7 +840,7 @@ func TestLetStatementScopes(t *testing.T) {
 				},
 			},
 			expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 2),
+				code.Make(code.OpClosure, 2, 0),
 				code.Make(code.OpPop),
 			},
 		},
@@ -834,7 +849,7 @@ func TestLetStatementScopes(t *testing.T) {
 }
 
 // 1) 내장 함수의 호출 역시 앞서 수립한 호출 규략을 준수하는지 확인합니다.
-// 2) OpGetBuiltin 명령어의 피연산자가 object.Builtins에서 참조할 내장 함수가 위치한 인덱스값인지 확인한다.
+// 2) OpGetBuiltin 명령어의 피연산자가 object.Builtins 에서 참조할 내장 함수가 위치한 인덱스값인지 확인한다.
 func TestBuiltins(t *testing.T) {
 	tests := []compilerTestCase{
 		{
@@ -860,9 +875,88 @@ func TestBuiltins(t *testing.T) {
 				code.Make(code.OpReturnValue),
 			}},
 			expectedInstructions: []code.Instructions{
-				code.Make(code.OpConstant, 0),
+				code.Make(code.OpClosure, 0, 0),
 				code.Make(code.OpPop),
 			}},
+	}
+	runCompilerTests(t, tests)
+}
+
+func TestClosure(t *testing.T) {
+	tests := []compilerTestCase{
+		{input: `fn(a) { fn(b) {a + b}};`, expectedConstants: []interface{}{[]code.Instructions{
+			code.Make(code.OpGetFree, 0),
+			code.Make(code.OpGetLocal, 0),
+			code.Make(code.OpAdd),
+			code.Make(code.OpReturnValue),
+		}, []code.Instructions{
+			code.Make(code.OpGetLocal, 0),
+			code.Make(code.OpClosure, 0, 1),
+			code.Make(code.OpReturnValue),
+		}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpClosure, 1, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{input: `fn(a) { fn(b) { fn (c) {a + b + c }}};`, expectedConstants: []interface{}{[]code.Instructions{
+			code.Make(code.OpGetFree, 0),
+			code.Make(code.OpGetFree, 1),
+			code.Make(code.OpAdd),
+			code.Make(code.OpGetLocal, 0),
+			code.Make(code.OpAdd),
+			code.Make(code.OpReturnValue),
+		}, []code.Instructions{
+			code.Make(code.OpGetFree, 0),
+			code.Make(code.OpGetLocal, 0),
+			code.Make(code.OpClosure, 0, 2),
+			code.Make(code.OpReturnValue),
+		}, []code.Instructions{
+			code.Make(code.OpGetLocal, 0),
+			code.Make(code.OpClosure, 1, 1),
+			code.Make(code.OpReturnValue),
+		}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpClosure, 2, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: `let global=55; fn() { let a = 66; fn() { let b = 77; fn() { let c = 88; global + a + b + c;}}}`,
+			expectedConstants: []interface{}{
+				55, 66, 77, 88,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 3),
+					code.Make(code.OpSetLocal, 0),
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpGetFree, 0),
+					code.Make(code.OpAdd),
+					code.Make(code.OpGetFree, 1),
+					code.Make(code.OpAdd),
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpAdd),
+					code.Make(code.OpReturnValue),
+				}, []code.Instructions{
+					code.Make(code.OpConstant, 2),
+					code.Make(code.OpSetLocal, 0),
+					code.Make(code.OpGetFree, 0),
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpClosure, 4, 2),
+					code.Make(code.OpReturnValue),
+				}, []code.Instructions{
+					code.Make(code.OpConstant, 1),
+					code.Make(code.OpSetLocal, 0),
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpClosure, 5, 1),
+					code.Make(code.OpReturnValue),
+				}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpClosure, 6, 0),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 	runCompilerTests(t, tests)
 }

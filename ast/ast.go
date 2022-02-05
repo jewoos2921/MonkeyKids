@@ -4,6 +4,7 @@ package ast
 import (
 	"MonkeyKids/token"
 	"bytes"
+	"fmt"
 	"strings"
 )
 
@@ -256,6 +257,7 @@ type FunctionLiteral struct {
 	Token      token.Token     // 'fn' 토큰
 	Parameters []*Identifier   // 파라미터 리스트
 	Body       *BlockStatement // 함수의 몸체
+	Name       string
 }
 
 func (fl *FunctionLiteral) expressionNode() {}
@@ -265,12 +267,16 @@ func (fl *FunctionLiteral) String() string {
 	var out bytes.Buffer
 
 	var params []string
-	//params:= []string{}
+
 	for _, p := range fl.Parameters {
 		params = append(params, p.String())
 	}
 
 	out.WriteString(fl.TokenLiteral())
+	// 자기 참조를 탐지하게 만들어야 한다.
+	if fl.Name != "" {
+		out.WriteString(fmt.Sprintf("<%s>", fl.Name))
+	}
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(")")
