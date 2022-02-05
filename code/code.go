@@ -100,6 +100,8 @@ const (
 	// 전역 바인딩에 영향을 미쳐서는 안됨
 	OpGetLocal
 	OpSetLocal
+	// 내장 함수용 스코프
+	OpGetBuiltin
 )
 
 type Definition struct {
@@ -143,6 +145,7 @@ var definitions = map[Opcode]*Definition{
 	OpReturn:      {"OpReturn", []int{}},
 	OpGetLocal:    {"OpGetLocal", []int{1}},
 	OpSetLocal:    {"OpSetLocal", []int{1}},
+	OpGetBuiltin:  {"OpGetBuiltin", []int{1}},
 }
 
 func Lookup(op byte) (*Definition, error) {

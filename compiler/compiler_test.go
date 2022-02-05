@@ -832,3 +832,37 @@ func TestLetStatementScopes(t *testing.T) {
 	}
 	runCompilerTests(t, tests)
 }
+
+// 1) 내장 함수의 호출 역시 앞서 수립한 호출 규략을 준수하는지 확인합니다.
+// 2) OpGetBuiltin 명령어의 피연산자가 object.Builtins에서 참조할 내장 함수가 위치한 인덱스값인지 확인한다.
+func TestBuiltins(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             `len([]); push([],1);`,
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpGetBuiltin, 0),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpCall, 1),
+				code.Make(code.OpPop),
+				code.Make(code.OpGetBuiltin, 5),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpCall, 2),
+				code.Make(code.OpPop),
+			}},
+		{
+			input: `fn() { len([]) };`,
+			expectedConstants: []interface{}{[]code.Instructions{
+				code.Make(code.OpGetBuiltin, 0),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpCall, 1),
+				code.Make(code.OpReturnValue),
+			}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			}},
+	}
+	runCompilerTests(t, tests)
+}

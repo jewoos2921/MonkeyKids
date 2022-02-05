@@ -12,8 +12,9 @@ package compiler
 type SymbolScope string
 
 const (
-	LocalScope  SymbolScope = "LOCAL"
-	GlobalScope SymbolScope = "GLOBAL" // 스코프를 구분할 필요가 있다.
+	LocalScope   SymbolScope = "LOCAL"
+	GlobalScope  SymbolScope = "GLOBAL" // 스코프를 구분할 필요가 있다.
+	BuiltinScope SymbolScope = "BUILTIN"
 )
 
 // 심벌을 처리할 때 필요한 정보를 담음
@@ -61,6 +62,12 @@ func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 		return obj, ok
 	}
 	return obj, ok
+}
+
+func (s *SymbolTable) DefineBuiltin(index int, name string) Symbol {
+	symbol := Symbol{Name: name, Scope: BuiltinScope, Index: index}
+	s.store[name] = symbol
+	return symbol
 }
 
 func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
